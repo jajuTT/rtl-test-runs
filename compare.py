@@ -791,14 +791,14 @@ if "__main__" == __name__:
     rtl_args["sim_result_yml"]        = "sim_result.yml"
     rtl_args["suites"]                = "postcommit"
     rtl_args["tags"]                  = None
-    rtl_args["test_bench_dir_path"]   = "/proj_tensix/user_dev/sjaju/work/apr/24"
+    rtl_args["test_bench_dir_path"]   = "/proj_tensix/user_dev/sjaju/work/feb/19"
     rtl_args["test_bench_dir"]        = "ws-tensix"
     rtl_args["test_dir_suffix"]       = "_0"
     rtl_args["tests_dir"]             = "infra/tensix/rsim/tests"
     rtl_args["tests"]                 = None
     rtl_args["username"]              = getpass.getuser()
-    # rtl_args["yml_files"]             = ["ttx-test-llk-sfpu.yml", "ttx-test-llk.yml"]
-    rtl_args["yml_files"]             = ["ttx-llk-sfpu.yml", "ttx-llk-fixed.yml"]
+    rtl_args["yml_files"]             = ["ttx-test-llk-sfpu.yml", "ttx-test-llk.yml"]
+    # rtl_args["yml_files"]             = ["ttx-llk-sfpu.yml", "ttx-llk-fixed.yml"]
     rtl_args["local_ws-tensix_dir"]   = "from-ws-tensix"
 
     t3sim_args = dict()
@@ -834,7 +834,7 @@ if "__main__" == __name__:
             print(f"  + {test}")
 
     if n1_tests:
-        print(f"+ Following {len(n1_tests)} tests will not be considered:")
+        print(f"+ If not executed already, the following {len(n1_tests)} will be executed on both RTL and via performance model:")
         for test in n1_tests:
             print(f"  + {test}")
     else:
