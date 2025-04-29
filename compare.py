@@ -63,14 +63,27 @@ def get_test_names_from_rtl_test_bench(args):
           tests = tests from step 4 + tests from argument.
     """
 
-    def get_test_names(suites, yml_files, tags, tests, tests_dir, project_yml):
+    def get_test_names(suites, yml_files, tags, tests, local_infra_dir, project_yml):
         import os
-        def get_proj_yml_file_name(tests_dir, project_yml):
-            proj_yml_file_name = os.path.join(tests_dir, project_yml)
-            if not os.path.isfile(proj_yml_file_name):
-                raise Exception (f"- error: file {proj_yml_file_name} does not exist. This file is needed to read the suite information.")
+        def get_yml_file_name_incl_path(local_infra_dir, yml_file):
 
-            return proj_yml_file_name
+            yml_files = []
+            for pwd, _, files in os.walk(local_infra_dir):
+                if yml_file in files:
+                    yml_files.append(os.path.join(pwd,yml_file))
+
+            if 0 == len(yml_files):
+                raise Exception(f"- error: could not find {yml_file} in directory {local_infra_dir}")
+            elif 1 == len(yml_files):
+                return yml_files[0]
+            else:
+                msg = f"- error: multiple project yml files found:\n"
+                for ele in yml_files:
+                    msg += f"  - {ele}\n"
+
+                    msg.rstrip()
+
+                raise Exception(msg)
 
         def get_tags_from_suites(proj_yml, suites):
             if None == suites:
@@ -127,24 +140,22 @@ def get_test_names_from_rtl_test_bench(args):
 
             return None
 
-        def get_tests_with_tags_from_files(yml_files, tags, tests_dir):
-            import os
+        def get_tests_with_tags_from_files(yml_files, tags, local_infra_dir):
             import re
             import yaml
 
             tests_str = "tests"
-
             tests = set()
-            for yml_file in yml_files:
-                if not os.path.exists(yml_file):
-                    yml_file = os.path.join(tests_dir, yml_file)
 
-                with open(yml_file) as stream:
+            for yml_file in yml_files:
+                yml_file_incl_path = get_yml_file_name_incl_path(local_infra_dir, yml_file)
+
+                with open(yml_file_incl_path) as stream:
                     yml = yaml.safe_load(stream)
 
                     if tests_str in yml.keys():
                         for test in yml[tests_str]:
-                            if any(re.match(test_tag, ref_tag) for test_tag in test["tags"] for ref_tag in tags):
+                            if any(re.match(test_tag, tag) for test_tag in test["tags"] for tag in tags):
                                 tests.add(test["test-name"])
 
             return tests
@@ -167,43 +178,57 @@ def get_test_names_from_rtl_test_bench(args):
             else:
                 raise Exception(f"- error: no method defined to add tests of type {type(tests)}")
 
-        proj_yml_incl_path = get_proj_yml_file_name(tests_dir, project_yml)
-        tags = get_tags(proj_yml_incl_path, suites, tags)
+        proj_yml_incl_path = get_yml_file_name_incl_path(local_infra_dir, project_yml)
+        print(f"Found {project_yml} at {proj_yml_incl_path}")
 
-        return get_tests(yml_files, tags, tests_dir, tests)
+        tags = get_tags(proj_yml_incl_path, suites, tags)
+        print(f"Tags associated with suite {suites} are {tags}")
+
+        return get_tests(yml_files, tags, local_infra_dir, tests)
 
     import os
     import shutil
 
-    suites          = args["suites"]              if "suites"              in args.keys() else "postcommit"
-    yml_files       = args["yml_files"]           if "yml_files"           in args.keys() else ["ttx-test-llk-sfpu.yml", "ttx-test-llk.yml"]
-    hostname        = args["hostname"]            if "hostname"            in args.keys() else "auslogo2"
-    remote_dir_path = args["test_bench_dir_path"] if "test_bench_dir_path" in args.keys() else ""
     force           = args["force"]               if "force"               in args.keys() else False
+    hostname        = args["hostname"]            if "hostname"            in args.keys() else "auslogo2"
+    infra_dir       = args["infra_dir"]           if "infra_dir"           in args.keys() else "infra"
+    project_yml     = args["project_yml"]         if "project_yml"         in args.keys() else "project.yml"
+    remote_dir      = args["test_bench_dir"]      if "test_bench_dir"      in args.keys() else "ws-tensix"
+    remote_dir_path = args["test_bench_dir_path"] if "test_bench_dir_path" in args.keys() else ""
+    suites          = args["suites"]              if "suites"              in args.keys() else "postcommit"
     tags            = args["tags"]                if "tags"                in args.keys() else None
     tests           = args["tests"]               if "tests"               in args.keys() else None
-    username        = args["username"]            if "username"            in args.keys() else getpass.getuser()
-    remote_dir      = args["test_bench_dir"]      if "test_bench_dir"      in args.keys() else "ws-tensix"
     tests_dir       = args["tests_dir"]           if "tests_dir"           in args.keys() else "infra/tensix/rsim/tests"
-    project_yml     = args["project_yml"]         if "project_yml"         in args.keys() else "project.yml"
+    username        = args["username"]            if "username"            in args.keys() else getpass.getuser()
+    yml_files       = args["yml_files"]           if "yml_files"           in args.keys() else ["ttx-test-llk-sfpu.yml", "ttx-test-llk.yml"]
+    local_rtl_dir   = args["local_ws-tensix_dir"] if "local_ws-tensix_dir" in args.keys() else f"from-{remote_dir}"
 
     if not remote_dir_path:
         raise Exception("- error: please provide remote dir path")
 
-    local_tests_dir = tests_dir.split("/")[-1]
+    local_infra_dir = os.path.join(local_rtl_dir, infra_dir)
 
     if force:
-        if os.path.isdir(local_tests_dir):
-            shutil.rmtree(local_tests_dir)
+        if os.path.isdir(local_infra_dir):
+            shutil.rmtree(local_infra_dir)
 
-    if not os.path.isdir(local_tests_dir):
+    # create the directory if it doesn't exist.
+    if not os.path.isdir(local_rtl_dir):
+        os.makedirs(local_rtl_dir)
+
+    if not os.path.isdir(local_infra_dir):
+        print("Copying ws-tensix/infra directory locally")
+        os.chdir(local_rtl_dir)
         with Connection(hostname, user = username) as conn:
             remote_dir_incl_path  = os.path.join(remote_dir_path, remote_dir)
-            tests_dir_incl_path   = os.path.join(remote_dir_incl_path, tests_dir)
+            infra_dir_incl_path   = os.path.join(remote_dir_incl_path, infra_dir)
+            cmd = f"rsync -az {username}@{hostname}:{infra_dir_incl_path} ."
+            print(f"Executing command: {cmd}")
+            conn.local(cmd)
 
-            conn.local(f"rsync -az --progress {username}@{hostname}:{tests_dir_incl_path} .")
+        os.chdir("..")
 
-    return get_test_names(suites, yml_files, tags, tests, local_tests_dir, project_yml)
+    return get_test_names(suites, yml_files, tags, tests, local_infra_dir, project_yml)
 
 def get_tensix_instructions_file_from_rtl_test_bench(args):
     import os
@@ -258,7 +283,7 @@ def execute_rtl_test(test, hostname, username, remote_dir_path, remote_dir, debu
 
 def execute_rtl_tests(tests, args):
     import os
-    
+
     hostname        = args["hostname"]            if "hostname"            in args.keys() else None
     remote_dir_path = args["test_bench_dir_path"] if "test_bench_dir_path" in args.keys() else None
     force           = args["force"]               if "force"               in args.keys() else False
@@ -270,12 +295,12 @@ def execute_rtl_tests(tests, args):
     sim_result_yml  = args["sim_result_yml"]      if "sim_result_yml"      in args.keys() else "sim_result.yml"
 
     # checks for hostname, remote_dir_path
-    if not hostname: 
+    if not hostname:
         raise Exception("- error: please provide hostname")
-    
-    if not username: 
+
+    if not username:
         raise Exception("- error: please provide username")
-    
+
     if not remote_dir_path:
         raise Exception("- error: please provide remote dir path")
 
@@ -504,7 +529,7 @@ def execute_t3sim_test(test, t3sim_args):
                 cfg["engines"].append(new_engine)
 
             del cfg["engines"][unpack_idx]
-        
+
         def update_packer_engines (cfg):
             import re
             def get_engine_idx(engine_name, cfg):
@@ -752,25 +777,13 @@ def write_status_to_csv():
     status.write_s_curve(summary_csv_name)
 
 if "__main__" == __name__:
-    # hostname        = "auslogo2"
-    # remote_dir_path = "/proj_tensix/user_dev/sjaju/work/feb/19"
-    # username        = "sjaju"
-    # remote_dir      = "ws-tensix"
-    # git_repo_at     = "git@yyz-tensix-gitlab:tensix-hw/ws-tensix.git"
-    # yml_files       = ["ttx-test-llk-sfpu.yml", "ttx-test-llk.yml"]
-    # suites          = "postcommit"
-    # tags            = None
-    # force_flag      = False
-    # num_processes   = 8
-    # debug_dir       = "rsim/debug" # divide between path and debug dir name
-    # test_dir_suffix = "_0"
-    # sim_result_yml  = "sim_result.yml"
 
     rtl_args = dict()
-    rtl_args["debug_dir"]             = "rsim/debug" # divide between path and debug dir name
+    rtl_args["debug_dir"]             = "rsim/debug" # todo: divide between path and debug dir name
     rtl_args["force"]                 = False
     rtl_args["git"]                   = "git@yyz-tensix-gitlab:tensix-hw/ws-tensix.git"
     rtl_args["hostname"]              = "auslogo2"
+    rtl_args["infra_dir"]             = "infra"
     rtl_args["instructions_dir_path"] = "src/meta"
     rtl_args["instructions_dir"]      = "instructions"
     rtl_args["num_processes"]         = 8
@@ -778,13 +791,15 @@ if "__main__" == __name__:
     rtl_args["sim_result_yml"]        = "sim_result.yml"
     rtl_args["suites"]                = "postcommit"
     rtl_args["tags"]                  = None
-    rtl_args["test_bench_dir_path"]   = "/proj_tensix/user_dev/sjaju/work/feb/19"
+    rtl_args["test_bench_dir_path"]   = "/proj_tensix/user_dev/sjaju/work/apr/24"
     rtl_args["test_bench_dir"]        = "ws-tensix"
     rtl_args["test_dir_suffix"]       = "_0"
     rtl_args["tests_dir"]             = "infra/tensix/rsim/tests"
     rtl_args["tests"]                 = None
     rtl_args["username"]              = getpass.getuser()
-    rtl_args["yml_files"]             = ["ttx-test-llk-sfpu.yml", "ttx-test-llk.yml"]
+    # rtl_args["yml_files"]             = ["ttx-test-llk-sfpu.yml", "ttx-test-llk.yml"]
+    rtl_args["yml_files"]             = ["ttx-llk-sfpu.yml", "ttx-llk-fixed.yml"]
+    rtl_args["local_ws-tensix_dir"]   = "from-ws-tensix"
 
     t3sim_args = dict()
     t3sim_args["sim_dir"]                      = "t3sim"
@@ -807,36 +822,43 @@ if "__main__" == __name__:
 
     # setup_rtl_environment(hostname, remote_dir_path)
 
-    # tests = get_test_names_from_rtl_test_bench(suites, yml_files, hostname = hostname, remote_dir_path = remote_dir_path, force = force_flag)
     tests = get_test_names_from_rtl_test_bench(rtl_args)
-    
-    print(f"- We get {len(tests)} tests: ")
-    for test in tests:
-        print(f"  - {test}")
-    
-    print("- We keep the tests only with 1 neo core.")
-    n1_tests = []
-    for test in tests:
-        if "n1" in test:
-            n1_tests.append(test)
+
+    print(f"+ Found {len(tests)} matching test(s) tests for the given tags, suites, and yml files.")
+    print(f"+ We keep the tests only with 1 neo core.")
+    n1_tests = sorted([test for test in tests if "n1" in test])
+    other_tests = sorted([test for test in tests if test not in n1_tests])
+    if other_tests:
+        print(f"+ Following {len(other_tests)} tests will not be considered:")
+        for test in other_tests:
+            print(f"  + {test}")
+
+    if n1_tests:
+        print(f"+ Following {len(n1_tests)} tests will not be considered:")
+        for test in n1_tests:
+            print(f"  + {test}")
+    else:
+        msg  = f"- error: could not fine tests with single neo core.\n"
+        msg += f"- {len(tests)} matching tests were found with the constraints set by tags, suites, and yml files.\n"
+        for test in tests:
+            msg += f"{test}\n"
+
+        raise Exception(msg.rstrip())
+
     tests = n1_tests
-    # tests.append('t6-quas-n1-ttx-unpack-tile-srca-srcb-perf')
-    n1_tests = None
     del n1_tests
-    # tests = ['t6-quas-n1-ttx-test-atcas']
-    print(f"+ Tests from RTL test bench for given suites, yml files, tags and tests ({len(tests)}):")
-    [print(f"  {test}") for test in sorted(tests)]
+    del other_tests
 
     # execute_rtl_tests(tests, rtl_args)
 
     # execute_t3sim_tests(tests, t3sim_args, rtl_args)
 
-    write_status_to_csv()
+    # write_status_to_csv()
 
 
 
 # todo:
 # 1. move rtl_test.log to respective test directories.
 # 2. no hardcoded names. sys.path.append("t3sim/binutils-playground")
-# 3. no debug_prev. overwrite debug. 
-# 4. .. 
+# 3. no debug_prev. overwrite debug.
+# 4. ..
