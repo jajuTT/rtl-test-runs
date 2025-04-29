@@ -109,7 +109,7 @@ class test_status:
 
     def __repr__(self):
         return self.__str__()
-    
+
     def get_num_instructions(self):
         def get_num_instructions_from_profile(instruction_profile, num_instructions):
             if all(isinstance(ele, read_elf.instructions.kind) for ele in instruction_profile.keys()):
@@ -124,14 +124,14 @@ class test_status:
                 for value in instruction_profile.values():
                     if isinstance(value, dict):
                         get_num_instructions_from_profile(value, num_instructions)
-                                
+
         num_instructions = dict()
         for ttx_name, core_id0, core_id1, neo_id, thread_id in itertools.product(self.elf_file_indices.ttx, self.elf_file_indices.core_id0s, self.elf_file_indices.core_id1s, self.elf_file_indices.neo_ids, self.elf_file_indices.thread_ids):
             ip = self.elf[ttx_name].core[core_id0][core_id1].neo[neo_id].thread[thread_id]
             get_num_instructions_from_profile(ip[0], num_instructions)
 
         return num_instructions
-    
+
     def get_instruction_kinds(self):
         def get_instruction_kinds_from_profile(instruction_profile, instruction_kinds):
             if all(isinstance(ele, read_elf.instructions.kind) for ele in instruction_profile.keys()):
@@ -142,7 +142,7 @@ class test_status:
                 for value in instruction_profile.values():
                     if isinstance(value, dict):
                         get_instruction_kinds_from_profile(value, instruction_kinds)
-                                
+
         instruction_kinds = set()
         for ttx_name, core_id0, core_id1, neo_id, thread_id in itertools.product(self.elf_file_indices.ttx, self.elf_file_indices.core_id0s, self.elf_file_indices.core_id1s, self.elf_file_indices.neo_ids, self.elf_file_indices.thread_ids):
             ip = self.elf[ttx_name].core[core_id0][core_id1].neo[neo_id].thread[thread_id]
@@ -405,7 +405,7 @@ def write_regression(file_to_read):
     import polars
     print("- reg: file to read: ", file_to_read)
     data = polars.read_csv(file_to_read)
-    
+
     # Group by col2 and count occurrences of P and F in col3
     result = (
         data.group_by("Test class")
@@ -441,32 +441,33 @@ def write_failure_types(file_to_read):
     data = polars.read_csv(file_to_read)
     result = data.filter(polars.col("Failure type").is_not_null())
 
-    # pivot the table. 
+    # pivot the table.
     result = (
         result
         .pivot(values = "Test", index = "Test class", columns = "Failure type", aggregate_function = "count")
         .fill_null(0)
     )
 
-    result = result.sort(result.columns[0], maintain_order=True)
+    if 1 != result.shape[1]: #if there's only 1 column, this means there's no failures. need to handle case where there are no success, here or somewhere. 
+        result = result.sort(result.columns[0], maintain_order=True)
 
-    # Add totals column
-    result = result.with_columns(
-        polars.sum_horizontal(result.columns[1:]).cast(polars.Int64).alias("Total")  # Correct summing
-        )
+        # Add totals column
+        result = result.with_columns(
+            polars.sum_horizontal(result.columns[1:]).cast(polars.Int64).alias("Total")  # Correct summing
+            )
 
-    # Add total row    
-    total_row = polars.DataFrame([{
-        "Test class": "Total",
-        **{col: result[col].sum() for col in result.columns[1:]}  # Summing each column
-    }])
+        # Add total row
+        total_row = polars.DataFrame([{
+            "Test class": "Total",
+            **{col: result[col].sum() for col in result.columns[1:]}  # Summing each column
+        }])
 
-    # Ensure all numeric columns in `pivoted_df` are UInt32 before concatenation
-    result = result.with_columns(
-        [polars.col(c).cast(polars.Int64) for c in result.columns[1:]]
-        )
+        # Ensure all numeric columns in `pivoted_df` are UInt32 before concatenation
+        result = result.with_columns(
+            [polars.col(c).cast(polars.Int64) for c in result.columns[1:]]
+            )
 
-    result = polars.concat([result, total_row])    
+        result = polars.concat([result, total_row])
 
     result.write_csv(f"failure_analysis_{file_to_read}", separator=",")
 
@@ -480,6 +481,8 @@ def write_s_curve(file_to_read):
     import matplotlib.pyplot as plt
 
     data = polars.read_csv(file_to_read)
+    num_tests = data.shape[0]
+    print("- num tests: ", num_tests)
     result = data.filter(polars.col("Perf comparison").is_not_null())
     result = result.select(["Test", "Perf comparison", polars.selectors.starts_with('Number of instructions of kind')]).sort("Perf comparison")
 
@@ -495,6 +498,7 @@ def write_s_curve(file_to_read):
     # Convert columns to lists for plotting
     x = result["Test"].to_list()  # Categories for x-axis
     y = result["Perf comparison"].to_list()  # Numerical values for y-axis
+    x = [f"{x[idx]} ({y[idx]:.2f})" for idx in range(len(x))]
     num_10pc = len([ele for ele in y if abs(ele - 1.0) <= 0.1])
     num_20pc = len([ele for ele in y if abs(ele - 1.0) <= 0.2])
     num_30pc = len([ele for ele in y if abs(ele - 1.0) <= 0.3])
@@ -502,22 +506,23 @@ def write_s_curve(file_to_read):
     # Create the plot
     fig, ax = plt.subplots(figsize=(6, 4))
     ax.plot(x, y, color = "black", linewidth = 1, alpha = 0.5)
-    ax.scatter(x, y, )
+    ax.scatter(x, y, alpha = 0.5)
 
     # Highlight the region 0.9 to 1.1 slightly darker
-    ax.axhspan(0.7, 1.3, color="gray", alpha=0.05, label=f"+/- 30% ({(num_30pc/len(y)):.2f})")
+    ax.axhspan(0.7, 1.3, color="gray", alpha=0.05, label=f"+/- 30% ({num_30pc}/{num_tests} tests, {((num_30pc/num_tests)*100):.0f}%)")
 
     # Highlight the region 0.9 to 1.1 slightly darker
-    ax.axhspan(0.8, 1.2, color="gray", alpha=0.1, label=f"+/- 20% ({(num_20pc/len(y)):.2f})")
-    
+    ax.axhspan(0.8, 1.2, color="gray", alpha=0.1,  label=f"+/- 20% ({num_20pc}/{num_tests} tests, {((num_20pc/num_tests)*100):.0f}%)")
+
     # Highlight the region 0.9 to 1.1 slightly darker
-    ax.axhspan(0.9, 1.1, color="gray", alpha=0.2, label=f"+/- 10% ({(num_10pc/len(y)):.2f})")
+    ax.axhspan(0.9, 1.1, color="gray", alpha=0.2,  label=f"+/- 10% ({num_10pc}/{num_tests} tests, {((num_10pc/num_tests)*100):.0f}%)")
 
     # Labels and title
     ax.set_xlabel("Tests")
     ax.set_ylabel("Perf comparison (PM/RTL)")
     # ax.set_title("col1 vs col5 Plot")
-    ax.tick_params(axis='x', labelrotation=90)
+    ax.tick_params(axis='x', labelrotation=90, labelsize = 6)
+
 
     # Show legend
     ax.legend()
@@ -579,7 +584,7 @@ def write_status_to_csv(status, file_to_write):
         classes['matmul'.upper()]   = {'matmul'}
         classes['pck'.upper()]      = {'pck'}
         classes['reduce'.upper()]   = {'reduce'}
-        classes['sfpu'.upper()]     = {'lrelu', 'tanh', 'sqrt', 'exp', 'recip', 'relu'} 
+        classes['sfpu'.upper()]     = {'lrelu', 'tanh', 'sqrt', 'exp', 'recip', 'relu'}
         classes['upk'.upper()]      = {'upk'}
 
         # fields = test.split("-")
@@ -596,7 +601,7 @@ def write_status_to_csv(status, file_to_write):
 
         if not test_class:
             raise Exception(f"- error: could not determine test class for {test}")
-        
+
         return test_class
 
     def get_failure_class(test_name, msg):
@@ -604,7 +609,7 @@ def write_status_to_csv(status, file_to_write):
         for b in bins:
             if b in msg:
                 return b
-            
+
         raise Exception(f"- error: could not find failure class from message: {msg} for test {test_name}")
 
     def get_instruction_kinds(status):
@@ -613,7 +618,7 @@ def write_status_to_csv(status, file_to_write):
             instruction_kinds.update(test_status.get_instruction_kinds())
 
         return instruction_kinds
-    
+
     instructions = get_instructions(status)
     instruction_kinds = get_instruction_kinds(status)
 
@@ -705,7 +710,7 @@ def write_status_to_csv(status, file_to_write):
         header.append("Failure type")
         for kind in instruction_kinds:
             header.append(f"Number of instructions of kind {kind}")
-        
+
         writer.writerow(header)
 
         for test_id, test_name in enumerate(sorted(status.keys())):
