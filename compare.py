@@ -261,7 +261,7 @@ def get_tensix_instructions_file_from_rtl_test_bench(args):
     with Connection(hostname, user = username) as conn:
         if conn.run(f"test -d {instructions_dir}", warn=True).failed:
             raise Exception(f"- error: could not find {instructions_dir} on remote machine {hostname}")
-        
+
         print(f"+ Copying instruction set directory from remote server to local directory at {local_instr_set_dir}")
         cmd = f"rsync -az --progress {username}@{hostname}:{instructions_dir} {local_instr_set_dir}"
         print(f"+ Executing command: {cmd}")
@@ -272,7 +272,7 @@ def execute_rtl_test(test, hostname, username, remote_dir_path, remote_dir, debu
 
         with Connection(hostname, user = username) as conn:
             root_dir = os.path.join(remote_dir_path, remote_dir)
-            log_file = test + log_file_suffix # todo: replace this with rtl_args dict entry. 
+            log_file = test + log_file_suffix # todo: replace this with rtl_args dict entry.
             log_file_dir = os.path.join(root_dir, debug_dir, test + test_dir_suffix)
             log_file = os.path.join(log_file_dir, log_file)
             print(log_file)
@@ -297,7 +297,7 @@ def execute_rtl_test(test, hostname, username, remote_dir_path, remote_dir, debu
                     "stderr"    : result.stderr.strip(),
                     "exit_code" : result.exited
                     }
-            
+
 def copy_rtl_test_data(test, hostname, username, remote_dir_path, remote_dir, debug_dir, test_dir_suffix, local_test_data_dir):
     # print(f"copy rtl test data. test: {test}")
     with Connection(hostname, user = username) as conn:
@@ -725,7 +725,7 @@ def execute_t3sim_tests(tests, t3sim_args = None, rtl_args = None):
 
         if not os.path.exists(binutils_assembly_yaml_dir):
             raise Exception(f"- error: directory {binutils_assembly_yaml_dir} does not exist!")
-        
+
         local_instructions_dir = os.path.join(rtl_args["local_test_bench_dir"], rtl_args["instructions_dir_path"], rtl_args["instructions_dir"])
 
         if not os.path.isdir(local_instructions_dir):
@@ -794,7 +794,7 @@ def execute_t3sim_tests(tests, t3sim_args = None, rtl_args = None):
     test_results = []
 
     if len(tests_to_execute):
-        
+
         update_tensix_assembly_yaml(t3sim_args["assembly_yaml"], os.path.join(t3sim_dir, binutils_dir), t3sim_args["tensix_instructions_kind"], rtl_args)
 
         num_processes = min(num_processes, len(tests_to_execute))
@@ -817,7 +817,7 @@ def write_status_to_csv(rtl_args, t3sim_args):
     status_args["debug_dir"]             = os.path.join(rtl_args["local_test_bench_dir"], rtl_args["debug_dir"])
     status_args["t3sim_dir"]             = t3sim_args["sim_dir"]
     status_args["sim_result_yml"]        = rtl_args["sim_result_yml"]
-    status_args["flatten_dict"]          = False # do not change this. 
+    status_args["flatten_dict"]          = False # do not change this.
     status_args["test_dir_suffix"]       = rtl_args["test_dir_suffix"]
     status_args["rtl_log_file_suffix"]   = rtl_args["rtl_log_file_suffix"]
     status_args["t3sim_log_file_suffix"] = t3sim_args["t3sim_log_file_suffix"]
@@ -851,12 +851,12 @@ if "__main__" == __name__:
     rtl_args["username"]              = getpass.getuser()
     rtl_args["yml_files"]             = ["ttx-llk-sfpu.yml", "ttx-llk-fixed.yml"] if "/proj_tensix/user_dev/sjaju/work/apr/24" == rtl_args["test_bench_dir_path"] else ["ttx-test-llk-sfpu.yml", "ttx-test-llk.yml"]
     rtl_args["local_test_bench_dir"]  = f"from-{rtl_args['test_bench_dir']}"
-    rtl_args["rtl_log_file_suffix"]   = ".rtl_test.log" 
+    rtl_args["rtl_log_file_suffix"]   = ".rtl_test.log"
 
     t3sim_args = dict()
     t3sim_args["assembly_yaml"]                = "assembly.yaml"
     t3sim_args["binutils_git"]                 = "git@github.com:jajuTT/binutils-playground.git"
-    t3sim_args["branch"]                       = "main" # t3sim branch 
+    t3sim_args["branch"]                       = "main" # t3sim branch
     t3sim_args["delay"]                        = 10
     t3sim_args["elf_files_dir"]                = rtl_args["debug_dir"].split("/")[-1] # "debug"
     t3sim_args["enable_sync"]                  = 1
@@ -880,7 +880,7 @@ if "__main__" == __name__:
 
     print(f"+ Remote server: {rtl_args["hostname"]}")
     print(f"+ Remote RTL test bench directory: {os.path.join(rtl_args["test_bench_dir_path"], rtl_args["test_bench_dir"])}")
-    
+
     tests = get_test_names_from_rtl_test_bench(rtl_args)
     print(f"+ Found {len(tests)} matching test(s) tests for the given tags, suites, and yml files.")
     print(f"+ We keep the tests only with 1 neo core.")
