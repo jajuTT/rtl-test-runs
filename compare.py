@@ -476,6 +476,29 @@ def execute_t3sim_test(test, t3sim_args):
                                 input_cfg.update({f"th{thread_id}Path" : pwd1})
                                 input_cfg.update({f"th{thread_id}Elf" : file})
 
+        if "dvalid" in test_name:
+            msg = f"{test_name} contains dvalid.\n"
+            msg += "in the inputcfg we are going to make the following changes.\n"
+            msg += "1. check that it has 3 threads, change it to 4 threads\n"
+            msg += "1. move thread 2 path and files to thread 3\n"
+            msg += "1. leave thread 2 empty\n"
+
+            print(msg)
+
+            if 3 != input_cfg["numThreads"]:
+                raise Exception(f"- error: expected numThreads to be 3, received {input_cfg['numThreads']}")
+
+            input_cfg["numThreads"] = 4 # change it to 4.
+
+            # add thread 3
+            thread_id = 3
+            input_cfg[f"th3Path"] = input_cfg[f"th2Path"]
+            input_cfg[f"th3Elf"]  = input_cfg[f"th2Elf"]
+
+            # make thread 2 empty
+            input_cfg[f"th2Path"] = ""
+            input_cfg[f"th2Elf"]  = ""
+
         input_cfg.update({"startFunction" : start_function})
 
         # t3sim.print_json(input_cfg_dict, f"t3sim_inputcfg_{test_name}.json")
@@ -1077,7 +1100,7 @@ if "__main__" == __name__:
     del n1_tests
     del other_tests
 
-    # execute_rtl_tests(tests, rtl_args)
+    execute_rtl_tests(tests, rtl_args)
 
     execute_t3sim_tests(tests, t3sim_args, rtl_args)
 
