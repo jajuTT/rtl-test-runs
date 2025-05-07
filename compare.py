@@ -1014,8 +1014,8 @@ if "__main__" == __name__:
     rtl_args["tests_dir"]              =  "infra/tensix/rsim/tests"
     rtl_args["tests"]                  = None
     rtl_args["username"]               = getpass.getuser()
-    # rtl_args["yml_files"]              = ["ttx-llk-sfpu.yml", "ttx-llk-fixed.yml"] if "/proj_tensix/user_dev/sjaju/work/apr/24" == rtl_args["test_bench_dir_path"] else ["ttx-test-llk-sfpu.yml", "ttx-test-llk.yml"]
-    rtl_args["yml_files"]              = ["ttx-llk-sfpu.yml"] if "/proj_tensix/user_dev/sjaju/work/apr/24" == rtl_args["test_bench_dir_path"] else ["ttx-test-llk-sfpu.yml"]
+    rtl_args["yml_files"]              = ["ttx-llk-sfpu.yml", "ttx-llk-fixed.yml"] if "/proj_tensix/user_dev/sjaju/work/apr/24" == rtl_args["test_bench_dir_path"] else ["ttx-test-llk-sfpu.yml", "ttx-test-llk.yml"]
+    # rtl_args["yml_files"]              = ["ttx-llk-sfpu.yml"] if "/proj_tensix/user_dev/sjaju/work/apr/24" == rtl_args["test_bench_dir_path"] else ["ttx-test-llk-sfpu.yml"]
     rtl_args["local_test_bench_dir"]   = f"from-{rtl_args['test_bench_dir']}"
     rtl_args["rtl_log_file_suffix"]    = ".rtl_test.log"
     rtl_args["src_hd_proj_dir"]        = "proj"
@@ -1026,8 +1026,7 @@ if "__main__" == __name__:
     t3sim_args = dict()
     t3sim_args["assembly_yaml"]                = "assembly.yaml"
     t3sim_args["binutils_git"]                 = "git@github.com:jajuTT/binutils-playground.git"
-    # t3sim_args["branch"]                       = "main" # t3sim branch
-    t3sim_args["branch"]                       = "35-resolve-timeout-20000-reached-for-headofrob-with-insid929position3" # t3sim branch
+    t3sim_args["branch"]                       = "main" # t3sim branch
     t3sim_args["delay"]                        = 10
     t3sim_args["elf_files_dir"]                = rtl_args["debug_dir"].split("/")[-1] # "debug"
     t3sim_args["enable_sync"]                  = 1
