@@ -203,7 +203,7 @@ def get_test_names_from_rtl_test_bench(args):
     tests_dir       = args["tests_dir"]           if "tests_dir"           in args.keys() else "infra/tensix/rsim/tests"
     username        = args["username"]            if "username"            in args.keys() else getpass.getuser()
     yml_files       = args["yml_files"]           if "yml_files"           in args.keys() else ["ttx-test-llk-sfpu.yml", "ttx-test-llk.yml"]
-    local_rtl_dir   = args["local_ws-tensix_dir"] if "local_ws-tensix_dir" in args.keys() else f"from-{remote_dir}"
+    local_rtl_dir   = args["local_ws-tensix_dir"] if "local_ws-tensix_dir" in args.keys() else f"from-{remote_dir}" # todo change this to appropriate key values.
 
     if not remote_dir_path:
         raise Exception("- error: please provide remote dir path")
@@ -261,7 +261,7 @@ def get_tensix_instructions_file_from_rtl_test_bench(args):
     with Connection(hostname, user = username) as conn:
         if conn.run(f"test -d {instructions_dir}", warn=True).failed:
             raise Exception(f"- error: could not find {instructions_dir} on remote machine {hostname}")
-        
+
         print(f"+ Copying instruction set directory from remote server to local directory at {local_instr_set_dir}")
         cmd = f"rsync -az --progress {username}@{hostname}:{instructions_dir} {local_instr_set_dir}"
         print(f"+ Executing command: {cmd}")
@@ -272,7 +272,7 @@ def execute_rtl_test(test, hostname, username, remote_dir_path, remote_dir, debu
 
         with Connection(hostname, user = username) as conn:
             root_dir = os.path.join(remote_dir_path, remote_dir)
-            log_file = test + log_file_suffix # todo: replace this with rtl_args dict entry. 
+            log_file = test + log_file_suffix # todo: replace this with rtl_args dict entry.
             log_file_dir = os.path.join(root_dir, debug_dir, test + test_dir_suffix)
             log_file = os.path.join(log_file_dir, log_file)
             print(log_file)
@@ -297,7 +297,7 @@ def execute_rtl_test(test, hostname, username, remote_dir_path, remote_dir, debu
                     "stderr"    : result.stderr.strip(),
                     "exit_code" : result.exited
                     }
-            
+
 def copy_rtl_test_data(test, hostname, username, remote_dir_path, remote_dir, debug_dir, test_dir_suffix, local_test_data_dir):
     # print(f"copy rtl test data. test: {test}")
     with Connection(hostname, user = username) as conn:
@@ -476,6 +476,29 @@ def execute_t3sim_test(test, t3sim_args):
                                 input_cfg.update({f"th{thread_id}Path" : pwd1})
                                 input_cfg.update({f"th{thread_id}Elf" : file})
 
+        if "dvalid" in test_name:
+            msg = f"{test_name} contains dvalid.\n"
+            msg += "in the inputcfg we are going to make the following changes.\n"
+            msg += "1. check that it has 3 threads, change it to 4 threads\n"
+            msg += "1. move thread 2 path and files to thread 3\n"
+            msg += "1. leave thread 2 empty\n"
+
+            print(msg)
+
+            if 3 != input_cfg["numThreads"]:
+                raise Exception(f"- error: expected numThreads to be 3, received {input_cfg['numThreads']}")
+
+            input_cfg["numThreads"] = 4 # change it to 4.
+
+            # add thread 3
+            thread_id = 3
+            input_cfg[f"th3Path"] = input_cfg[f"th2Path"]
+            input_cfg[f"th3Elf"]  = input_cfg[f"th2Elf"]
+
+            # make thread 2 empty
+            input_cfg[f"th2Path"] = ""
+            input_cfg[f"th2Elf"]  = ""
+
         input_cfg.update({"startFunction" : start_function})
 
         # t3sim.print_json(input_cfg_dict, f"t3sim_inputcfg_{test_name}.json")
@@ -486,7 +509,7 @@ def execute_t3sim_test(test, t3sim_args):
 
         return input_cfg_dict
 
-    def get_cfg(test_name, debug_dir, cfg_dir, enable_sync = 1, delay = 10, max_num_threads = 4, mop_base_addr_str = "0x80d000"):
+    def get_cfg(test_name, debug_dir, cfg_dir, mop_base_addr_str, cfg_base_addr_str, cfg_offset, enable_sync = 1, delay = 10, max_num_threads = 4):
         import os
 
         def get_tensix_instruction_kind(test_dir):
@@ -608,11 +631,16 @@ def execute_t3sim_test(test, t3sim_args):
             del cfg["engines"][pack_idx]
 
         def update_mop_cfg_start(base_addr_str, max_num_threads, cfg):
-            value = dict()
-            for id in range(max_num_threads):
-                value.update({str(id) : base_addr_str})
+            # value = dict()
+            # for id in range(max_num_threads):
+            #     value.update({str(id) : base_addr_str})
 
-            cfg.update({"MOP_CFG_START" : value})
+            # cfg.update({"MOP_CFG_START" : value})
+
+            cfg.update({"MOP_CFG_START" : base_addr_str})
+
+        def update_cfg_start(base_addr_str, cfg):
+            cfg.update({"CFG_START" : base_addr_str})
 
         def add_engineGrp_to_engines(cfg):
             for engine in cfg["engines"]:
@@ -659,6 +687,8 @@ def execute_t3sim_test(test, t3sim_args):
         update_packer_engines(cfg_dict)
         add_engineGrp_to_engines(cfg_dict)
         update_mop_cfg_start(mop_base_addr_str, max_num_threads, cfg_dict)
+        update_cfg_start(cfg_base_addr_str, cfg_dict)
+        cfg_dict.update({"CFG_OFFSET" : cfg_offset})
         # update_stack(test_dir, cfg_dict)
         update_stack(cfg_dict)
 
@@ -676,14 +706,23 @@ def execute_t3sim_test(test, t3sim_args):
     start_function               = t3sim_args["start_function"]                if "start_function"               in t3sim_args.keys() else "main"
     delay                        = t3sim_args["delay"]                         if "delay"                        in t3sim_args.keys() else 10
     max_num_threads_per_neo_core = t3sim_args["max_num_threads_per_neo_core"]  if "max_num_threads_per_neo_core" in t3sim_args.keys() else 4
-    mop_base_addr_str            = t3sim_args["mop_base_addr_str"]             if "mop_base_addr_str"            in t3sim_args.keys() else "0x80d000"
     enable_sync                  = t3sim_args["enable_sync"]                   if "enable_sync"                  in t3sim_args.keys() else 1
     cfg_dir                      = t3sim_args["cfg_dir"]                       if "cfg_dir"                      in t3sim_args.keys() else "cfg"
     log_file_suffix              = t3sim_args["t3sim_log_file_suffix"]         if "t3sim_log_file_suffix"        in t3sim_args.keys() else ".t3sim_test.log"
 
+    if "mop_base_addr_str" not in t3sim_args.keys():
+        raise Exception("- error: could not find mop_base_addr_str in t3sim_args")
+
+    if "cfg_base_addr_str" not in t3sim_args.keys():
+        raise Exception("- error: could not find cfg_base_addr_str in t3sim_args")
+
+    mop_base_addr_str = t3sim_args["mop_base_addr_str"]
+    cfg_base_addr_str = t3sim_args["cfg_base_addr_str"]
+    cfg_offset        = t3sim_args["cfg_offset"]
+
     cfg_dir_incl_path = os.path.join(t3sim_dir, cfg_dir)
 
-    get_cfg(test, debug_dir, cfg_dir_incl_path, enable_sync, delay, max_num_threads_per_neo_core, mop_base_addr_str)
+    get_cfg(test, debug_dir, cfg_dir_incl_path, mop_base_addr_str, cfg_base_addr_str, cfg_offset, enable_sync, delay, max_num_threads_per_neo_core)
     get_input_cfg(test, debug_dir, cfg_dir_incl_path, start_function)
 
     os.chdir(t3sim_dir)
@@ -702,22 +741,165 @@ def execute_t3sim_tests(tests, t3sim_args = None, rtl_args = None):
 
     t3sim_dir                    = t3sim_args["sim_dir"]                       if "sim_dir"                      in t3sim_args.keys() else "t3sim"
     logs_dir                     = t3sim_args["logs_dir"]                      if "logs_dir"                     in t3sim_args.keys() else "logs"
-    elf_files_dir                = t3sim_args["elf_files_dir"]                 if "elf_files_dir"                in t3sim_args.keys() else "debug"
+    # elf_files_dir                = t3sim_args["elf_files_dir"]                 if "elf_files_dir"                in t3sim_args.keys() else "debug"
     git_repo                     = t3sim_args["git"]                           if "git"                          in t3sim_args.keys() else "git@github.com:vmgeorgeTT/t3sim.git"
     binutils_git_repo            = t3sim_args["binutils_git"]                  if "binutils_git"                 in t3sim_args.keys() else "git@github.com:jajuTT/binutils-playground.git"
     force                        = t3sim_args["force"]                         if "force"                        in t3sim_args.keys() else False
     num_processes                = t3sim_args["num_processes"]                 if "num_processes"                in t3sim_args.keys() else 1
     json_log_prefix              = t3sim_args["json_log_prefix"]               if "json_log_prefix"              in t3sim_args.keys() else "simreport_"
     json_log_suffix              = t3sim_args["json_log_suffix"]               if "json_log_suffix"              in t3sim_args.keys() else ".json"
-    test_dir_suffix              = t3sim_args["test_dir_suffix"]               if "test_dir_suffix"              in t3sim_args.keys() else "_0"
-    start_function               = t3sim_args["start_function"]                if "start_function"               in t3sim_args.keys() else "main"
-    delay                        = t3sim_args["delay"]                         if "delay"                        in t3sim_args.keys() else 10
-    max_num_threads_per_neo_core = t3sim_args["max_num_threads_per_neo_core"]  if "max_num_threads_per_neo_core" in t3sim_args.keys() else 4
-    mop_base_addr_str            = t3sim_args["mop_base_addr_str"]             if "mop_base_addr_str"            in t3sim_args.keys() else "0x80d000"
-    enable_sync                  = t3sim_args["enable_sync"]                   if "enable_sync"                  in t3sim_args.keys() else 1
+    # test_dir_suffix              = t3sim_args["test_dir_suffix"]               if "test_dir_suffix"              in t3sim_args.keys() else "_0"
+    # start_function               = t3sim_args["start_function"]                if "start_function"               in t3sim_args.keys() else "main"
+    # delay                        = t3sim_args["delay"]                         if "delay"                        in t3sim_args.keys() else 10
+    # max_num_threads_per_neo_core = t3sim_args["max_num_threads_per_neo_core"]  if "max_num_threads_per_neo_core" in t3sim_args.keys() else 4
+    # enable_sync                  = t3sim_args["enable_sync"]                   if "enable_sync"                  in t3sim_args.keys() else 1
     t3sim_branch                 = t3sim_args["branch"]                        if "branch"                       in t3sim_args.keys() else "main"
     binutils_dir                 = binutils_git_repo.split("/")[-1][:-4]
     t3sim_args["binutils_dir"]   = binutils_dir
+
+    def copy_remote_dir_to_local(remote_dir, remote_dir_path, remote_root_dir, local_root_dir, hostname, username):
+        remote_path = os.path.join(remote_root_dir, remote_dir_path, remote_dir)
+        local_path  = os.path.join(local_root_dir, remote_dir_path)
+
+        if not os.path.isdir(local_path):
+            os.makedirs(local_path)
+
+        with Connection(hostname, user = username) as conn:
+            if conn.run(f"test -d {remote_path}", warn=True).failed:
+                raise Exception(f"- error: could not find {remote_path} on remote machine {hostname}")
+
+            print(f"+ Copying {remote_path} directory from remote server to local directory at {local_path}")
+            cmd = f"rsync -az --progress {username}@{hostname}:{remote_path} {local_path}"
+            print(f"+ Executing command: {cmd}")
+            conn.local(cmd)
+
+    def copy_src_hd_proj_dir_from_remote(rtl_args):
+        local_root_dir  = rtl_args["local_test_bench_dir"]
+        remote_dir      = rtl_args["src_hd_proj_dir"] # directory to copy
+        remote_dir_path = rtl_args["src_hd_proj_dir_path"]
+        remote_root_dir = os.path.join(rtl_args["test_bench_dir_path"], rtl_args["test_bench_dir"])
+        hostname        = rtl_args["hostname"]
+        username        = rtl_args["username"]
+
+        copy_remote_dir_to_local(remote_dir, remote_dir_path, remote_root_dir, local_root_dir, hostname, username)
+
+    def copy_src_firmware_dir_from_remote(rtl_args):
+        local_root_dir  = rtl_args["local_test_bench_dir"]
+        remote_dir      = rtl_args["src_firmware_dir"] # directory to copy
+        remote_dir_path = rtl_args["src_firmware_dir_path"]
+        remote_root_dir = os.path.join(rtl_args["test_bench_dir_path"], rtl_args["test_bench_dir"])
+        hostname        = rtl_args["hostname"]
+        username        = rtl_args["username"]
+
+        copy_remote_dir_to_local(remote_dir, remote_dir_path, remote_root_dir, local_root_dir, hostname, username)
+
+    def get_address_from_define(path, file, name):
+        # file: <file>
+        #   #define <name> <addr>
+        # returns addr
+        start_string = f"#define {name}"
+
+        addr = set()
+        for pwd, _, files in os.walk(path):
+            for f in files:
+                if f == file:
+                    file_incl_path = os.path.join(pwd, file)
+                    with open(file_incl_path, 'r') as fp:
+                        for line in fp:
+                            line = line.strip()
+                            if line.startswith(start_string):
+                                addr.add(line.split()[-1])
+
+        # TODO: make sure we find mop_cfg_base address in each of the subdirectories in `proj`
+
+        if 0 == len(addr):
+            raise Exception(f"- error: could not find string {start_string} in file {file} in directory {path}")
+        elif 1 != len(addr):
+            raise Exception(f"- error: expected one addr address value, received {len(addr)}. The values are: {addr}")
+
+        return list(addr)[0]
+
+    def get_MOP_CFG_BASE_address(rtl_args):
+        name = "MOP_CFG_BASE"
+        file = "tt_t6_trisc_map.h"
+        path = os.path.join(rtl_args["local_test_bench_dir"], rtl_args["src_hd_proj_dir_path"], rtl_args["src_hd_proj_dir"])
+
+        return get_address_from_define(path, file, name)
+
+    def get_CFG_REGS_BASE(rtl_args):
+        name = "CFG_REGS_BASE"
+        file = "tt_t6_trisc_map.h"
+        path = os.path.join(rtl_args["local_test_bench_dir"], rtl_args["src_hd_proj_dir_path"], rtl_args["src_hd_proj_dir"])
+
+        return get_address_from_define(path, file, name)
+
+    def get_TENSIX_CFG_BASE(rtl_args):
+        name = "TENSIX_CFG_BASE"
+        file = "tensix.h"
+        path = os.path.join(rtl_args["local_test_bench_dir"], rtl_args["src_firmware_dir_path"], rtl_args["src_firmware_dir"])
+        addr = get_address_from_define(path, file, name)
+        if "CFG_REGS_BASE" == addr:
+            return get_CFG_REGS_BASE(rtl_args)
+        else:
+            raise Exception(f"- error: expected {name} address to be associated with CFG_REGS_BASE but received {addr}")
+
+    def get_CFG_OFFSET(rtl_args):
+        cfg_offset_keys = { # t3sim name : rtl name
+            "DEST_TARGET_REG_CFG_MATH_SEC0_OFFSET_ADDR32" : "DEST_TARGET_REG_CFG_MATH_SEC0_Offset_ADDR32",
+            "DEST_TARGET_REG_CFG_MATH_SEC1_OFFSET_ADDR32" : "DEST_TARGET_REG_CFG_MATH_SEC1_Offset_ADDR32",
+            "DEST_TARGET_REG_CFG_MATH_SEC2_OFFSET_ADDR32" : "DEST_TARGET_REG_CFG_MATH_SEC2_Offset_ADDR32",
+            "DEST_TARGET_REG_CFG_MATH_SEC3_OFFSET_ADDR32" : "DEST_TARGET_REG_CFG_MATH_SEC3_Offset_ADDR32",
+            "DEST_DVALID_CTRL_UNPACKER" : [
+                "UNPACK_TO_DEST_DVALID_CTRL_disable_auto_bank_id_toggle_ADDR32",
+                "UNPACK_TO_DEST_DVALID_CTRL_toggle_mask_ADDR32",
+                "UNPACK_TO_DEST_DVALID_CTRL_wait_mask_ADDR32",
+                "UNPACK_TO_DEST_DVALID_CTRL_wait_polarity_ADDR32"
+                ],
+            "DEST_DVALID_CTRL_MATH" : [
+                "MATH_DEST_DVALID_CTRL_disable_auto_bank_id_toggle_ADDR32",
+                "MATH_DEST_DVALID_CTRL_toggle_mask_ADDR32",
+                "MATH_DEST_DVALID_CTRL_wait_mask_ADDR32",
+                "MATH_DEST_DVALID_CTRL_wait_polarity_ADDR32"
+                ],
+            "DEST_DVALID_CTRL_SFPU" : [
+                "SFPU_DEST_DVALID_CTRL_disable_auto_bank_id_toggle_ADDR32",
+                "SFPU_DEST_DVALID_CTRL_toggle_mask_ADDR32",
+                "SFPU_DEST_DVALID_CTRL_wait_mask_ADDR32",
+                "SFPU_DEST_DVALID_CTRL_wait_polarity_ADDR32"
+                ],
+            "DEST_DVALID_CTRL_PACKER" : [
+                "PACK_DEST_DVALID_CTRL_disable_auto_bank_id_toggle_ADDR32",
+                "PACK_DEST_DVALID_CTRL_toggle_mask_ADDR32",
+                "PACK_DEST_DVALID_CTRL_wait_mask_ADDR32",
+                "PACK_DEST_DVALID_CTRL_wait_polarity_ADDR32"
+                ]
+        }
+
+        file = "cfg_defines.h"
+        path = os.path.join(rtl_args["local_test_bench_dir"], rtl_args["src_hd_proj_dir_path"], rtl_args["src_hd_proj_dir"])
+
+        cfg_offsets = dict() # t3sim_name : offset
+        for key, rtl_names in cfg_offset_keys.items():
+            if isinstance(rtl_names, str):
+                cfg_offsets[key] = int(get_address_from_define(path, file, rtl_names))
+            elif isinstance(rtl_names, list):
+                offsets = set()
+                for name in rtl_names:
+                    offsets.add(get_address_from_define(path, file, name))
+
+                if 0 == len(offsets):
+                    raise Exception(f"- error: could not find offset for {rtl_names} in file {file} in directory {path}")
+                elif 1 != len(offsets):
+                    raise Exception(f"- error: found multiple offsets for {rtl_names} in file {file} in directory {path}, expected the offset to be same for all the macros. offsets: {offsets}")
+
+                cfg_offsets[key] = int(list(offsets)[0])
+            else:
+                raise Exception(f"- error: no method defined in function get_CFG_OFFSET to parse input of type {type(rtl_names)}")
+
+        if len(cfg_offset_keys) != len(cfg_offset_keys):
+            raise Exception("- error: length mismatch between cfg keys and offsets")
+
+        return cfg_offsets
 
     def update_tensix_assembly_yaml(assembly_yaml, binutils_dir, instructions_kind, rtl_args):
         binutils_assembly_yaml_dir = os.path.join(binutils_dir, "instruction_sets", instructions_kind)
@@ -725,7 +907,7 @@ def execute_t3sim_tests(tests, t3sim_args = None, rtl_args = None):
 
         if not os.path.exists(binutils_assembly_yaml_dir):
             raise Exception(f"- error: directory {binutils_assembly_yaml_dir} does not exist!")
-        
+
         local_instructions_dir = os.path.join(rtl_args["local_test_bench_dir"], rtl_args["instructions_dir_path"], rtl_args["instructions_dir"])
 
         if not os.path.isdir(local_instructions_dir):
@@ -759,6 +941,12 @@ def execute_t3sim_tests(tests, t3sim_args = None, rtl_args = None):
 
         if not found_assembly_yaml:
             raise Exception(f"- error: could not find {assembly_yaml} in local directory {local_instructions_dir}")
+
+    copy_src_hd_proj_dir_from_remote(rtl_args)
+    copy_src_firmware_dir_from_remote(rtl_args)
+    t3sim_args["mop_base_addr_str"] = get_MOP_CFG_BASE_address(rtl_args)
+    t3sim_args["cfg_base_addr_str"] = get_TENSIX_CFG_BASE(rtl_args)
+    t3sim_args["cfg_offset"]        = get_CFG_OFFSET(rtl_args)
 
     if force or (not os.path.isdir(t3sim_dir)):
         if os.path.isdir(t3sim_dir):
@@ -794,7 +982,7 @@ def execute_t3sim_tests(tests, t3sim_args = None, rtl_args = None):
     test_results = []
 
     if len(tests_to_execute):
-        
+
         update_tensix_assembly_yaml(t3sim_args["assembly_yaml"], os.path.join(t3sim_dir, binutils_dir), t3sim_args["tensix_instructions_kind"], rtl_args)
 
         num_processes = min(num_processes, len(tests_to_execute))
@@ -817,7 +1005,7 @@ def write_status_to_csv(rtl_args, t3sim_args):
     status_args["debug_dir"]             = os.path.join(rtl_args["local_test_bench_dir"], rtl_args["debug_dir"])
     status_args["t3sim_dir"]             = t3sim_args["sim_dir"]
     status_args["sim_result_yml"]        = rtl_args["sim_result_yml"]
-    status_args["flatten_dict"]          = False # do not change this. 
+    status_args["flatten_dict"]          = False # do not change this.
     status_args["test_dir_suffix"]       = rtl_args["test_dir_suffix"]
     status_args["rtl_log_file_suffix"]   = rtl_args["rtl_log_file_suffix"]
     status_args["t3sim_log_file_suffix"] = t3sim_args["t3sim_log_file_suffix"]
@@ -831,32 +1019,37 @@ def write_status_to_csv(rtl_args, t3sim_args):
 if "__main__" == __name__:
 
     rtl_args = dict()
-    rtl_args["debug_dir"]             = "rsim/debug" # todo: divide between path and debug dir name
-    rtl_args["force"]                 = False
-    rtl_args["git"]                   = "git@yyz-tensix-gitlab:tensix-hw/ws-tensix.git"
-    rtl_args["hostname"]              = "auslogo2"
-    rtl_args["infra_dir"]             = "infra"
-    rtl_args["instructions_dir_path"] = "src/meta"
-    rtl_args["instructions_dir"]      = "instructions"
-    rtl_args["num_processes"]         = 8
-    rtl_args["project_yml"]           = "project.yml"
-    rtl_args["sim_result_yml"]        = "sim_result.yml"
-    rtl_args["suites"]                = "postcommit"
-    rtl_args["tags"]                  = None
-    rtl_args["test_bench_dir_path"]   = "/proj_tensix/user_dev/sjaju/work/feb/19"
-    rtl_args["test_bench_dir"]        = "ws-tensix"
-    rtl_args["test_dir_suffix"]       = "_0"
-    rtl_args["tests_dir"]             = "infra/tensix/rsim/tests"
-    rtl_args["tests"]                 = None
-    rtl_args["username"]              = getpass.getuser()
-    rtl_args["yml_files"]             = ["ttx-llk-sfpu.yml", "ttx-llk-fixed.yml"] if "/proj_tensix/user_dev/sjaju/work/apr/24" == rtl_args["test_bench_dir_path"] else ["ttx-test-llk-sfpu.yml", "ttx-test-llk.yml"]
-    rtl_args["local_test_bench_dir"]  = f"from-{rtl_args['test_bench_dir']}"
-    rtl_args["rtl_log_file_suffix"]   = ".rtl_test.log" 
+    rtl_args["debug_dir"]              = "rsim/debug" # todo: divide between path and debug dir name
+    rtl_args["force"]                  = False
+    rtl_args["git"]                    = "git@yyz-tensix-gitlab:tensix-hw/ws-tensix.git"
+    rtl_args["hostname"]               = "auslogo2"
+    rtl_args["infra_dir"]              = "infra"
+    rtl_args["instructions_dir_path"]  = "src/meta"
+    rtl_args["instructions_dir"]       = "instructions"
+    rtl_args["num_processes"]          = 8
+    rtl_args["project_yml"]            = "project.yml"
+    rtl_args["sim_result_yml"]         = "sim_result.yml"
+    rtl_args["suites"]                 = "postcommit"
+    rtl_args["tags"]                   = None
+    rtl_args["test_bench_dir_path"]    = "/proj_tensix/user_dev/sjaju/work/mar/18"
+    rtl_args["test_bench_dir"]         = "ws-tensix"
+    rtl_args["test_dir_suffix"]        =  "_0"
+    rtl_args["tests_dir"]              =  "infra/tensix/rsim/tests"
+    rtl_args["tests"]                  = None
+    rtl_args["username"]               = getpass.getuser()
+    rtl_args["yml_files"]              = ["ttx-llk-sfpu.yml", "ttx-llk-fixed.yml"] if "/proj_tensix/user_dev/sjaju/work/apr/24" == rtl_args["test_bench_dir_path"] else ["ttx-test-llk-sfpu.yml", "ttx-test-llk.yml"]
+    # rtl_args["yml_files"]              = ["ttx-llk-sfpu.yml"] if "/proj_tensix/user_dev/sjaju/work/apr/24" == rtl_args["test_bench_dir_path"] else ["ttx-test-llk-sfpu.yml"]
+    rtl_args["local_test_bench_dir"]   = f"from-{rtl_args['test_bench_dir']}"
+    rtl_args["rtl_log_file_suffix"]    = ".rtl_test.log"
+    rtl_args["src_hd_proj_dir"]        = "proj"
+    rtl_args["src_hd_proj_dir_path"]   = "src/hardware/tensix"
+    rtl_args["src_firmware_dir"]       = "firmware"
+    rtl_args["src_firmware_dir_path"]  = "src"
 
     t3sim_args = dict()
     t3sim_args["assembly_yaml"]                = "assembly.yaml"
     t3sim_args["binutils_git"]                 = "git@github.com:jajuTT/binutils-playground.git"
-    t3sim_args["branch"]                       = "main" # t3sim branch 
+    t3sim_args["branch"]                       = "main" # t3sim branch
     t3sim_args["delay"]                        = 10
     t3sim_args["elf_files_dir"]                = rtl_args["debug_dir"].split("/")[-1] # "debug"
     t3sim_args["enable_sync"]                  = 1
@@ -866,7 +1059,7 @@ if "__main__" == __name__:
     t3sim_args["json_log_suffix"]              = ".json"
     t3sim_args["logs_dir"]                     = "logs"
     t3sim_args["max_num_threads_per_neo_core"] = 4
-    t3sim_args["mop_base_addr_str"]            = "0x80d000"
+    # t3sim_args["mop_base_addr_str"]            = "0x80d000"
     t3sim_args["num_processes"]                = 8
     t3sim_args["sim_dir"]                      = "t3sim"
     t3sim_args["start_function"]               = "main"
@@ -880,7 +1073,7 @@ if "__main__" == __name__:
 
     print(f"+ Remote server: {rtl_args["hostname"]}")
     print(f"+ Remote RTL test bench directory: {os.path.join(rtl_args["test_bench_dir_path"], rtl_args["test_bench_dir"])}")
-    
+
     tests = get_test_names_from_rtl_test_bench(rtl_args)
     print(f"+ Found {len(tests)} matching test(s) tests for the given tags, suites, and yml files.")
     print(f"+ We keep the tests only with 1 neo core.")
@@ -907,7 +1100,7 @@ if "__main__" == __name__:
     del n1_tests
     del other_tests
 
-    # execute_rtl_tests(tests, rtl_args)
+    execute_rtl_tests(tests, rtl_args)
 
     execute_t3sim_tests(tests, t3sim_args, rtl_args)
 
