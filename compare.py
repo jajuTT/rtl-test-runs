@@ -659,7 +659,7 @@ def execute_t3sim_test(test, t3sim_args):
 
         def add_globalPointer(instruction_kind, cfg):
             globalPointer_str = "globalPointer"
-            if instruction_kind == decoded_instruction.instruction_kind.ttwh:
+            if decoded_instruction.instruction_kind.ttwh == instruction_kind:
                 cfg[globalPointer_str] = "0xffb007f0"
             else:
                 cfg[globalPointer_str] = ""
