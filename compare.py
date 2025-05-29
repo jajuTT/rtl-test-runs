@@ -399,6 +399,7 @@ def execute_t3sim_test(test, t3sim_args):
     sys.path.append(f'./{t3sim_dir}')
     sys.path.append(f'{os.path.join(t3sim_dir, binutils_dir, "py")}')
     import read_elf
+    import decoded_instruction
     import subprocess
     import tensix
 
@@ -656,6 +657,13 @@ def execute_t3sim_test(test, t3sim_args):
 
                 engine["engineGrp"] = engine_grp
 
+        def add_globalPointer(instruction_kind, cfg):
+            globalPointer_str = "globalPointer"
+            if instruction_kind == decoded_instruction.instruction_kind.ttwh:
+                cfg[globalPointer_str] = "0xffb007f0"
+            else:
+                cfg[globalPointer_str] = ""
+
         def update_stack(cfg):
             value = dict()
 
@@ -686,6 +694,7 @@ def execute_t3sim_test(test, t3sim_args):
         update_unpacker_engines(cfg_dict)
         update_packer_engines(cfg_dict)
         add_engineGrp_to_engines(cfg_dict)
+        add_globalPointer(instruction_kind, cfg_dict)
         update_mop_cfg_start(mop_base_addr_str, max_num_threads, cfg_dict)
         update_cfg_start(cfg_base_addr_str, cfg_dict)
         cfg_dict.update({"CFG_OFFSET" : cfg_offset})
