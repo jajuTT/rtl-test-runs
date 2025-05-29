@@ -1449,9 +1449,9 @@ if "__main__" == __name__:
     # for key in sorted(mnemonics_tpt.keys()):
     #     print(f"- mnemonic: {key:<{max_key_len}} throughput: {mnemonics_tpt[key]}")
 
-    # execute_rtl_tests(tests, rtl_args)
+    execute_rtl_tests(tests, rtl_args)
 
-    # execute_t3sim_tests(tests, t3sim_args, rtl_args)
+    execute_t3sim_tests(tests, t3sim_args, rtl_args)
 
     write_status_to_csv(rtl_args, t3sim_args)
 
