@@ -1075,7 +1075,10 @@ def execute_t3sim_test(test, t3sim_args):
 
                 ele.update({"engineName"         : engine})
                 ele.update({"engineInstructions" : instructions_incl_tpt})
-                ele.update({"delay"              : delay})
+                if "NONE" == engine:
+                    ele.update({"delay"              : 0})
+                else:
+                    ele.update({"delay"              : delay})
 
                 cfg_engines_value.append(ele)
 
@@ -1215,7 +1218,8 @@ def execute_t3sim_test(test, t3sim_args):
         def get_mnemonics_throughputs_from_default_cfg_file(instruction_kind, t3sim_args):
             def get_default_cfg_file_name_incl_path(instruction_kind, t3sim_args):
                 t3sim_dir = t3sim_args["git"].split("/")[-1][:-4]
-                return os.path.join(t3sim_dir, t3sim_args["cfg_dir"], f"{instruction_kind}_t3Cfg_{t3sim_args['rtl_tag']}.json")
+                # return os.path.join(t3sim_dir, t3sim_args["cfg_dir"], f"{instruction_kind}_t3Cfg_{t3sim_args['rtl_tag']}.json")
+                return os.path.join(t3sim_dir, t3sim_args["cfg_dir"], f"{instruction_kind}_neo4_{t3sim_args['rtl_tag']}.json")
 
             def get_instructions_throughput(file_name):
                 mnemonics_tpt = dict()
@@ -1256,6 +1260,38 @@ def execute_t3sim_test(test, t3sim_args):
             print(f"- mnemonics and throughput will be obtained from file: {file_name_incl_path}")
             return get_instructions_throughput(file_name_incl_path)
 
+        # def get_engine_names_delay(file_name):
+        #     def get_default_cfg_file_name_incl_path(instruction_kind, t3sim_args):
+        #         t3sim_dir = t3sim_args["git"].split("/")[-1][:-4]
+        #         # return os.path.join(t3sim_dir, t3sim_args["cfg_dir"], f"{instruction_kind}_t3Cfg_{t3sim_args['rtl_tag']}.json")
+        #         return os.path.join(t3sim_dir, t3sim_args["cfg_dir"], f"{instruction_kind}_neo4_{t3sim_args['rtl_tag']}.json")
+
+        #     def get_engine_names_delay(instruction_kind, t3sim_args):
+        #         with open(file_name, 'r') as file:
+        #             data = json.load(file)
+
+        #             engines_str = "engines"
+        #             engineName_str = "engineName"
+        #             delay_str = "delay"
+
+        #             if not engines_str in data.keys():
+        #                 raise Exception(f"- could not find key {engines_str} in file {file_name}")
+
+        #             engine_names_delay = dict()
+        #             engines = data[engines_str]
+        #             for engine in engines:
+        #                 if engineName_str not in engine.keys():
+        #                     raise Exception(f"- error: could not find key {engineName_str} in engine: {engine}")
+
+        #                 if delay_str not in engine.keys():
+        #                     raise Exception(f"- error: could not find key {delay_str} in engine: {engine}")
+
+        #                 engine_names_delay[engine[engineName_str]] = engine[delay_str]
+
+        #         return engine_names_delay
+
+        #     file_name =
+
         required_keys = [
             "cfg_base_addr_str",
             "cfg_dir",
@@ -1293,14 +1329,17 @@ def execute_t3sim_test(test, t3sim_args):
 
         cfg_dict = dict()
 
-        cfg_dict.update({"enableSync"    : enable_sync})
-        cfg_dict.update({"arch"          : instruction_kind.name})
-        cfg_dict.update({"llkVersionTag" : t3sim_args['rtl_tag']})
-        cfg_dict.update({"numTCores"     : get_num_neos(test_dir)})
-        cfg_dict.update({"numTriscCores" : cfg_dict["numTCores"]})
-        cfg_dict.update({"orderScheme"   : [ [0,1], [0,1], [0,1,2], [1,2] ]})
-        cfg_dict.update({"risc.cpi"      : 1.0})
-        cfg_dict.update({"latency_l1"    : 10.0})
+        cfg_dict.update({"enableSync"     : enable_sync})
+        cfg_dict.update({"arch"           : instruction_kind.name})
+        cfg_dict.update({"llkVersionTag"  : t3sim_args['rtl_tag']})
+        cfg_dict.update({"numTCores"      : get_num_neos(test_dir)})
+        cfg_dict.update({"numTriscCores"  : cfg_dict["numTCores"]})
+        cfg_dict.update({"orderScheme"    : [ [0,1], [0,1], [0,1,2], [1,2] ]})
+        # cfg_dict.update({"risc.cpi"       : 1.0})
+        # cfg_dict.update({"latency_l1"     : 10.0})
+        cfg_dict.update({"risc.cpi"       : t3sim_args['risc.cpi']})
+        cfg_dict.update({"latency_l1"     : t3sim_args['latency_l1']})
+        cfg_dict.update({"enableSharedL1" : t3sim_args['enableSharedL1']})
         mnemomics_throughputs = get_mnemonics_throughputs_from_default_cfg_file(instruction_kind.name, t3sim_args)
         update_engines(tensix.get_execution_engines_and_instructions(instruction_kind), mnemomics_throughputs, delay, cfg_dict)
         update_unpacker_engines(cfg_dict)
@@ -1697,6 +1736,9 @@ if "__main__" == __name__:
     t3sim_args["t3sim_log_file_suffix"]        = ".t3sim_test.log"
     t3sim_args["rtl_tag"]                      = rtl_args["rtl_tag"]
     t3sim_args["binutils_dir"]                 = t3sim_args["binutils_git"].split("/")[-1][:-4]
+    t3sim_args["risc.cpi"]                     = 1
+    t3sim_args["latency_l1"]                   = 10
+    t3sim_args["enableSharedL1"]               = 1
     print(t3sim_args["binutils_dir"])
 
     # setup_rtl_environment(hostname, remote_dir_path)
