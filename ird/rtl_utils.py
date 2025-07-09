@@ -23,23 +23,23 @@ class yaml_files:
     @staticmethod
     def get_value_at_key_from_stream(key, stream):
         data = yaml.safe_load(stream)
-        
+
         if data is None or not isinstance(data, dict):
             raise Exception("Error: YAML content is empty or not a dictionary")
-            
+
         if not key in data.keys():
             raise Exception(f"- error: could not find key {key} in given stream. available keys: {data.keys()}")
-        
+
         return data[key]
-    
+
     @staticmethod
     def get_value_at_key_from_file(key, file_name):
         if not os.path.isfile(file_name):
             raise Exception("- error: given file {file_name} does not exist")
-        
+
         with open(file_name) as stream:
             return yaml_files.get_value_at_key_from_stream(key, stream)
-        
+
 class copy:
     @staticmethod
     def update_known_hosts(host: str, new_key: paramiko.PKey):
@@ -53,7 +53,7 @@ class copy:
         host_keys.add(host, new_key.get_name(), new_key)
         host_keys.save(known_hosts)
         print(f"- updated host key for {host}")
-    
+
     @staticmethod
     def safe_connection(**conn_kwargs) -> fabric.Connection:
         # Fabric connection that fixes a changed host key after *you* have decided the new key is legitimate.
@@ -73,14 +73,14 @@ class copy:
                 copy.update_known_hosts(exc.hostname, exc.key)
                 # loop again and reconnect with fresh file
 
-    
+
     @staticmethod
     def copy_dir_from_remote_to_local(hostname, username, port, remote_dir, local_dir, mode = ""):
         if ("force" == mode) and pathlib.Path(local_dir).exists():
             shutil.rmtree(local_dir)
 
         parent_dir_path = pathlib.Path(local_dir).parent
-        parent_dir_path.mkdir(parents = True, exist_ok = True) # create the directory if it doesn't exist.        
+        parent_dir_path.mkdir(parents = True, exist_ok = True) # create the directory if it doesn't exist.
 
         # print(f"+ Copying {remote_dir} directory locally at {parent_dir_path}")
         with fabric.Connection(hostname, user = username) as conn:
@@ -97,7 +97,7 @@ class test_names:
                 file_names.append(os.path.join(pwd,file_name))
 
         return file_names
-        
+
     @staticmethod
     def get_file_name_incl_path(root_dir, file_name):
         if file_name.startswith(root_dir) and os.path.isfile(file_name):
@@ -110,8 +110,37 @@ class test_names:
         elif 1 == len(file_names):
             return file_names[0]
         else:
-            msg = f"- error: multiple project yml files found:\n"
+            msg = f"- error: multiple files with name {file_name} found:\n"
             for ele in file_names:
+                msg += f"  - {ele}\n"
+
+                msg.rstrip()
+
+            raise Exception(msg)
+
+    @staticmethod
+    def get_dirs_incl_path(root_dir, dir_name):
+        dir_names = []
+        for pwd, _, _ in os.walk(root_dir):
+            if pwd.endswith(dir_name):
+                dir_names.append(pwd)
+
+        return dir_names
+
+    @staticmethod
+    def get_dir_incl_path(root_dir, dir_name):
+        if dir_name.startswith(root_dir) and os.path.isfile(dir_name):
+            return dir_name
+
+        dir_names = test_names.get_dirs_incl_path(root_dir, dir_name)
+
+        if 0 == len(dir_names):
+            raise Exception(f"- error: could not find {dir_name} in directory {root_dir}")
+        elif 1 == len(dir_names):
+            return dir_names[0]
+        else:
+            msg = f"- error: multiple directories with name {dir_name} found:\n"
+            for ele in dir_names:
                 msg += f"  - {ele}\n"
 
                 msg.rstrip()
@@ -330,6 +359,7 @@ class rtl_tests:
         key_sim_result_yaml_key_result_val_PASS = "sim_result.yaml_key_result_val_PASS"
         key_local_root_dir       = "local_root_dir"
         key_local_root_dir_path  = "local_root_dir_path"
+        key_rtl_tag              = "rtl_tag"
 
         for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_")]:
             assert key in args.keys(), f"- error: {key} not found in given args dict"
@@ -355,7 +385,6 @@ class rtl_tests:
                     with contextlib.suppress(FileNotFoundError):
                         sftp.remove(remote_sim_result_yaml_incl_path)
 
-                
                 with contextlib.suppress(FileNotFoundError), sftp.open(remote_sim_result_yaml_incl_path, "r") as remote_file:
                     data = yaml.safe_load(remote_file.read().decode("utf-8"))
                     assert isinstance(data, dict), f"- error: could not obtain correct YAML mapping from file {remote_sim_result_yaml_incl_path} on {conn.host}"
@@ -366,7 +395,10 @@ class rtl_tests:
                 with conn.cd(remote_root_dir_incl_path):
                     cmds = []
                     cmds.append(f"pwd")
-                    cmds.append(f"source SETUP.cctb.local.sh")
+                    if args[key_rtl_tag] in set(["feb19", "mar18"]):
+                        cmds.append(f"source SETUP.cctb.sh")
+                    else:
+                        cmds.append(f"source SETUP.cctb.local.sh")
                     cmds.append(f"mkdir -p {remote_log_file_dir}")
                     cmds.append(f"rsim run_test --test {test} > {remote_log_file_incl_path} 2>&1")
 
@@ -378,7 +410,7 @@ class rtl_tests:
                         print(f"- test {test!r} execuition failed")
             else:
                 print(f"- test ID {test_id}. test: {test!r}. pass: {is_test_status_pass}")
-                
+
             # copy data
             copy.copy_dir_from_remote_to_local(hostname, username, port, remote_log_file_dir, os.path.join(local_root_dir_incl_path, rel_log_file_dir))
 
@@ -392,7 +424,7 @@ class rtl_tests:
         num_processes = min(args[key_num_processes], len(tests))
         print(f"- Number of RTL tests to execute:                    {len(tests)}")
         print(f"- Number of parallel processes to execute RTL tests: {num_processes}")
-        
+
         with multiprocessing.Pool(processes = num_processes) as pool:
             test_results = pool.starmap(rtl_tests.execute_test, [(idx, test, args) for idx, test in enumerate(tests)])
 
@@ -420,10 +452,10 @@ class rtl_tests:
 
         with multiprocessing.Pool(processes = num_processes) as pool:
             pool.starmap(copy.copy_dir_from_remote_to_local, [(
-                args[key_hostname], 
-                args[key_username], 
-                args[key_port], 
-                os.path.join(remote_src_dir_incl_path, dir_name), 
+                args[key_hostname],
+                args[key_username],
+                args[key_port],
+                os.path.join(remote_src_dir_incl_path, dir_name),
                 os.path.join(local_src_dir_incl_path, dir_name)) for dir_name in dirs_to_copy])
 
 # def get_test_names_from_given_file(file_name, args):

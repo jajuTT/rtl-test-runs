@@ -12,32 +12,44 @@ import math
 import multiprocessing
 import os
 import paramiko
+import polaris_big_utils
+import re
 import rtl_utils
 import shlex
 import sys
-import t3sim_utils
 
-def reserve_tensix_ird_instance(username = None, hostname = "yyz-ird", machine = None, key = os.path.expanduser("~/.ssh/id_ed25519")):
-    def get_ird_selection_id(msg):
-        def str_to_table_dict(msg):
-            import re
-            lines = msg.strip().splitlines()
+def get_ird_reservations_list(username = getpass.getuser(), hostname = "yyz-ird", key_file_name = os.path.expanduser("~/.ssh/id_ed25519")):
+    with fabric.Connection(
+        hostname,
+        user = username,
+        connect_kwargs = {"key_filename": key_file_name}) as conn:
 
-            if len(lines) < 2:
-                raise Exception(f"- error: expected minimum 2 lines, received {len(lines)}, most likely the ird instance was not reserved. The method assumes at least one ird instance is allocated. given string: {msg}")
-            rows = []
-            # split header and data on runs of 2+ spaces
+        cmd = f'ird list'
+        print(f"- executing command {cmd} on remote server {hostname}")
+        result = conn.run(cmd, hide=True, warn=True)
+        if result.exited:
+            msg  = f"- error: could not execute {cmd} on server {hostname}.\n"
+            msg += f"- command executed:   {cmd}\n"
+            msg += f"- exit staus:         {result.exited}\n"
+            msg += f"- messages to stdout: {result.stdout}\n"
+            msg += f"- messages to stderr: {result.stderr}"
+            raise Exception(msg)
 
+        lines = result.stdout.strip().splitlines()
+        print(lines)
+
+        if 0 == len(lines):
+            return []
+        elif 1 == len(lines):
+            return []
+        else:
             cols = re.split(r'\s{2,}', lines[0].strip())
             data = [dict(zip(cols, re.split(r'\s{2,}', line.strip()))) for line in lines[1:]]
-
-            print(data)
-
             return data
 
-        table_dict = str_to_table_dict(msg)
-
-        print(msg)
+def reserve_tensix_ird_instance(username = None, hostname = "yyz-ird", machine = None, key = os.path.expanduser("~/.ssh/id_ed25519")):
+    def get_ird_selection_id(username, hostname, key):
+        table_dict   = get_ird_reservations_list(username = username, hostname = hostname, key_file_name = key)
         selection_id = table_dict[-1]["SELECTION ID"]
         machine      = table_dict[-1]["MACHINE"]
         port         = table_dict[-1]["SSH PORT"]
@@ -50,6 +62,8 @@ def reserve_tensix_ird_instance(username = None, hostname = "yyz-ird", machine =
     hostname = "yyz-ird"
     if not username:
         username = getpass.getuser()
+
+    ird_release_all(username, hostname, key_file_name = key)
 
     with fabric.Connection(
         hostname,
@@ -69,26 +83,15 @@ def reserve_tensix_ird_instance(username = None, hostname = "yyz-ird", machine =
             msg += f"- messages to stderr: {result.stderr}"
             raise Exception(msg)
 
-        cmd = f'ird list'
-        print(f"- executing command {cmd} on remote server {hostname}")
-        result = conn.run(cmd, hide=True, warn=True)
-        if result.exited:
-            msg  = f"- error: could not execute {cmd} on server {hostname}.\n"
-            msg += f"- command executed:   {cmd}\n"
-            msg += f"- exit staus:         {result.exited}\n"
-            msg += f"- messages to stdout: {result.stdout}\n"
-            msg += f"- messages to stderr: {result.stderr}"
-            raise Exception(msg)
+    selection_id, hostname, port = get_ird_selection_id(username, hostname, key)
 
-        selection_id, hostname, port = get_ird_selection_id(result.stdout)
+    conn = rtl_utils.copy.safe_connection(
+        host = hostname,
+        user = username,
+        port = port,
+        connect_kwargs={"key_filename": key})
 
-        conn = rtl_utils.copy.safe_connection(
-            host = hostname,
-            user = username,
-            port = port,
-            connect_kwargs={"key_filename": key})
-
-        return (selection_id, hostname, port)
+    return (selection_id, hostname, port)
 
 def ird_release(selection_id, username = None):
     hostname = "yyz-ird"
@@ -99,6 +102,42 @@ def ird_release(selection_id, username = None):
         cmd = f"ird release {selection_id}"
         print(f"- executing {cmd} on remote server {hostname}")
         conn.run(cmd)
+
+def ird_release_all(username = getpass.getuser(), hostname = "yyz-ird", key_file_name = os.path.expanduser("~/.ssh/id_ed25519")):
+    ird_list_op = get_ird_reservations_list(username, hostname, key_file_name)
+    ids = sorted([int(ele['SELECTION ID']) for ele in ird_list_op])
+
+    with fabric.Connection(
+        hostname,
+        user = username,
+        connect_kwargs = {"key_filename": key_file_name}) as conn:
+
+        if ids:
+            cmds = [f"ird release {id}" for id in reversed(ids)]
+
+            cmd = "; ".join(cmds)
+            print(f"- executing command {cmd} on remote server {hostname}")
+            result = conn.run(cmd, hide=True, warn=True)
+            if result.exited:
+                msg  = f"- error: could not execute {cmd} on server {hostname}.\n"
+                msg += f"- command executed:   {cmd}\n"
+                msg += f"- exit staus:         {result.exited}\n"
+                msg += f"- messages to stdout: {result.stdout}\n"
+                msg += f"- messages to stderr: {result.stderr}"
+                raise Exception(msg)
+
+        cmd = 'ird list'
+        result = conn.run(cmd, hide=True, warn=True)
+        if result.exited:
+            msg  = f"- error: could not execute {cmd} on server {hostname}.\n"
+            msg += f"- command executed:   {cmd}\n"
+            msg += f"- exit staus:         {result.exited}\n"
+            msg += f"- messages to stdout: {result.stdout}\n"
+            msg += f"- messages to stderr: {result.stderr}"
+            raise Exception(msg)
+        print("- start of ird list output")
+        print(result.stdout)
+        print("- end of ird list output")
 
 def clone_rtl_test_bench_at(path, repo_dir, machine, port, username = None):
     repo_url  = f"git@yyz-tensix-gitlab:tensix-hw/{repo_dir}.git"
@@ -195,21 +234,6 @@ def build_rtl_test_bench(path, repo_dir, machine, port, username = None):
             print(f"- executing command {cmd} on server {machine}, port {port}")
             conn.run(cmd, timeout = 1800)
 
-def execute_rtl_test_cases(tests, tags, suites, machine, port, username = None):
-    force           = args["force"]               if "force"               in args.keys() else False
-    hostname        = args["hostname"]            if "hostname"            in args.keys() else "auslogo2"
-    infra_dir       = args["infra_dir"]           if "infra_dir"           in args.keys() else "infra"
-    project_yml     = args["project_yml"]         if "project_yml"         in args.keys() else "project.yml"
-    remote_dir      = args["test_bench_dir"]      if "test_bench_dir"      in args.keys() else "ws-tensix"
-    remote_dir_path = args["test_bench_dir_path"] if "test_bench_dir_path" in args.keys() else ""
-    suites          = args["suites"]              if "suites"              in args.keys() else ""
-    tags            = args["tags"]                if "tags"                in args.keys() else None
-    tests           = args["tests"]               if "tests"               in args.keys() else None
-    tests_dir       = args["tests_dir"]           if "tests_dir"           in args.keys() else "infra/tensix/rsim/tests"
-    username        = args["username"]            if "username"            in args.keys() else getpass.getuser()
-    yml_files       = args["yml_files"]           if "yml_files"           in args.keys() else ["ttx-test-llk-sfpu.yml", "ttx-test-llk.yml"]
-    local_rtl_dir   = args["local_ws-tensix_dir"] if "local_ws-tensix_dir" in args.keys() else f"from-{remote_dir}" # todo change this to appropriate key values.
-
 def check_rtl_test_bench_path_clone_and_build_if_required(path, repo_dir, machine, port, username = None):
     if not username:
         username = getpass.getuser()
@@ -247,7 +271,6 @@ def check_rtl_test_bench_path_clone_and_build_if_required(path, repo_dir, machin
 
 if "__main__" == __name__:
     rtl_args = dict()
-
     rtl_args["suites"]    = "postcommit"
     rtl_args["tags"]      = None
     rtl_args["tests"]     = None
@@ -259,19 +282,6 @@ if "__main__" == __name__:
     rtl_args["yaml_files"] = {
         "ttx-test-llk-sfpu.yml"  : {"suites" : "postcommit"},
         "ttx-test-llk.yml" : {"suites" : "postcommit"}}
-
-    # ["ttx-llk-sfpu.yml", "ttx-llk-fixed.yml"] if "/proj_tensix/user_dev/sjaju/work/apr/24" == rtl_args["test_bench_dir_path"] else ["ttx-test-llk-sfpu.yml", "ttx-test-llk.yml"]
-    # rtl_args["test_mode"] = "suites" # another acceptable option: all.
-
-    # # rtl_args["yml_files"]              = ["ttx-llk-sfpu.yml", "ttx-llk-fixed.yml"] if "/proj_tensix/user_dev/sjaju/work/apr/24" == rtl_args["test_bench_dir_path"] else ["ttx-test-llk-sfpu.yml", "ttx-test-llk.yml"]
-    # rtl_args["yml_files"]              = [
-    #     # "cctb-l1-basic.yml",
-    #     # "cctb-pack-basic.yml",
-    #     # "cctb-srcs-basic.yml",
-    #     "cctb-math-basic.yml",
-    #     "cctb-sfpu-basic.yml",
-    #     # "cctb-upk-basic.yml"
-    #     ]
 
     rtl_args["debug_dir_path"]        = "rsim"
     rtl_args["debug_dir"]             = "debug"
@@ -311,7 +321,6 @@ if "__main__" == __name__:
     rtl_args["local_root_dir_path"] = os.getcwd()
     rtl_args["rtl_tag"] = "".join(rtl_args["remote_root_dir_path"].split(os.path.sep)[-2:])
 
-
     rtl_utils.copy.safe_connection(host = rtl_args["ird_server"], user = rtl_args["username"], connect_kwargs = {"key_filename": rtl_args["ssh_key_file"]})
 
     selID, machine, port = reserve_tensix_ird_instance(
@@ -323,28 +332,27 @@ if "__main__" == __name__:
     rtl_args["ird_sel_id"] = selID
     rtl_args["port"]       = port
 
-    t3sim_args = dict()
-    t3sim_args["t3sim_git_url"]         = "git@github.com:vmgeorgeTT/t3sim.git"
-    t3sim_args["binutils_git_url"]      = "git@github.com:jajuTT/binutils-playground.git"
-    t3sim_args["t3sim_git_branch"]      = "main" # t3sim branch
-    t3sim_args["force"]                 = rtl_args["force"] # rtl_args["force"]
-    t3sim_args["instruction_kind"]      = "ttqs"
-    t3sim_args["t3sim_cfg_dir"]         = "cfg"
-    t3sim_args["t3sim_logs_dir"]        = "logs"
-    t3sim_args["start_function"]        = "main"
-    t3sim_args["num_processes"]         = rtl_args["num_processes"]
-    t3sim_args["t3sim_log_file_suffix"] = ".t3sim_test.log"
-    t3sim_args["t3sim_inputcfg_prefix"] = "t3sim_inputcfg_"
-    t3sim_args["t3sim_cfg_prefix"]      = "t3sim_cfg_"
-    t3sim_args["cfg_order_scheme"]      = [ [0,1], [0,1], [0,1,2], [1,2] ]
-    t3sim_args["cfg_risc.cpi"]          = 1.0
-    t3sim_args["cfg_latency_l1"]        = 10.0
-    t3sim_args["cfg_enable_shared_l1"]  = 1
-    t3sim_args["cfg_enable_sync"]       = 1
-    t3sim_args["t3sim_odir"]            = "llk"
-    t3sim_args["default_cfg_file_name"] = f"ttqs_neo4_{rtl_args["rtl_tag"]}.json"
-    t3sim_args["cfg_global_pointer"]    = "0xffb007f0"
-    t3sim_args["cfg_stack"]             = {
+    polaris_big_args = dict()
+    polaris_big_args["cfg_enable_shared_l1"]       = 1
+    polaris_big_args["cfg_enable_sync"]            = 1
+    polaris_big_args["cfg_global_pointer"]         = "0xffb007f0"
+    polaris_big_args["cfg_latency_l1"]             = 10.0
+    polaris_big_args["cfg_order_scheme"]           = [ [0,1], [0,1], [0,1,2], [1,2] ]
+    polaris_big_args["cfg_risc.cpi"]               = 1.0
+    polaris_big_args["default_cfg_file_name"]      = f"ttqs_neo4_{rtl_args["rtl_tag"]}.json"
+    polaris_big_args["force"]                      = rtl_args["force"] # rtl_args["force"]
+    polaris_big_args["instruction_kind"]           = "ttqs"
+    polaris_big_args["model_cfg_dir"]              = "__config_files"
+    polaris_big_args["model_cfg_file_prefix"]      = "cfg_"
+    polaris_big_args["model_git_branch"]           = "19-correct-dependencies-of-tneosim" # pb branch
+    polaris_big_args["model_git_url"]              = "git@github.com:vmgeorgeTT/polaris_big.git"
+    polaris_big_args["model_inputcfg_file_prefix"] = "inputcfg_"
+    polaris_big_args["model_log_file_suffix"]      = ".model_test.log"
+    polaris_big_args["model_logs_dir"]             = "__logs"
+    polaris_big_args["model_odir"]                 = "__llk"
+    polaris_big_args["num_processes"]              = rtl_args["num_processes"]
+    polaris_big_args["start_function"]             = "main"
+    polaris_big_args["cfg_stack"]                  = {
         "0": [
             "0x8023FF",
             "0x802000"
@@ -363,11 +371,9 @@ if "__main__" == __name__:
         ]
     }
 
-
-    t3sim_args["t3sim_root_dir"]       = t3sim_args["t3sim_git_url"].split("/")[-1][:-4]
-    t3sim_args["t3sim_root_dir_path"]  = os.getcwd()
-    t3sim_args["binutils_root_dir"]    = t3sim_args["binutils_git_url"].split("/")[-1][:-4]
-
+    polaris_big_args["model_root_dir"]             = polaris_big_args["model_git_url"].split("/")[-1][:-4]
+    polaris_big_args["model_root_dir_path"]        = os.getcwd()
+    polaris_big_args["model_instruction_sets_dir"] = "instructions_sets"
 
     check_rtl_test_bench_path_clone_and_build_if_required(path, rtl_args["remote_root_dir"], machine, port, rtl_args["username"])
 
@@ -383,7 +389,7 @@ if "__main__" == __name__:
     for idx, test in enumerate(tests):
         print(f"  - {idx:>{int(math.log(len(tests))) + 1}}. {test}")
 
-    # rtl_utils.rtl_tests.execute_tests(tests, rtl_args)
-    t3sim_utils.t3sim_tests.execute_tests(tests, rtl_args, t3sim_args)
+    rtl_utils.rtl_tests.execute_tests(tests, rtl_args)
+    polaris_big_utils.polaris_big_tests.execute_tests(tests, rtl_args, polaris_big_args)
 
     ird_release(selID)
