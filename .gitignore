@@ -3,5 +3,6 @@ __pycache__
 *.png
 *.svg
 from-ws-tensix
+from-ws-tensix*
 polaris_big
 t3sim

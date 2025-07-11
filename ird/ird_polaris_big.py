@@ -16,6 +16,7 @@ import polaris_big_utils
 import re
 import rtl_utils
 import shlex
+import status_utils
 import sys
 
 def get_ird_reservations_list(username = getpass.getuser(), hostname = "yyz-ird", key_file_name = os.path.expanduser("~/.ssh/id_ed25519")):
@@ -274,14 +275,13 @@ if "__main__" == __name__:
     rtl_args["suites"]    = "postcommit"
     rtl_args["tags"]      = None
     rtl_args["tests"]     = None
-    # rtl_args["yaml_files"] = ["ttx-llk-sfpu.yml", "ttx-llk-fixed.yml"]
-    # rtl_args["yaml_files"] = {
-    #     "ttx-llk-sfpu.yml"  : {"suites" : "postcommit"},
-    #     "ttx-llk-fixed.yml" : {"suites" : "postcommit"}}
-
     rtl_args["yaml_files"] = {
-        "ttx-test-llk-sfpu.yml"  : {"suites" : "postcommit"},
-        "ttx-test-llk.yml" : {"suites" : "postcommit"}}
+        "ttx-llk-sfpu.yml"  : {"suites" : "postcommit"},
+        "ttx-llk-fixed.yml" : {"suites" : "postcommit"}}
+
+    # rtl_args["yaml_files"] = {
+    #     "ttx-test-llk-sfpu.yml"  : {"suites" : "postcommit"},
+    #     "ttx-test-llk.yml"       : {"suites" : "postcommit"}}
 
     rtl_args["debug_dir_path"]        = "rsim"
     rtl_args["debug_dir"]             = "debug"
@@ -305,14 +305,14 @@ if "__main__" == __name__:
     rtl_args["username"]              = getpass.getuser()
     rtl_args["ird_server"]            = "yyz-ird"
     rtl_args["src_dir"]               = "src"
-    rtl_args["isa_file_name"]         = "assembly.yaml"
-
-    rtl_args["local_root_dir"]        = f"from-{rtl_args['remote_root_dir']}"
+    rtl_args["isa_file_name"]         = "assembly.yaml"    
 
     # month_str =  datetime.datetime.now().strftime('%B').lower()
     # day_str   = f"{datetime.datetime.now().day:02d}"
     # path      = f"/proj_tensix/user_dev/sjaju/work/{month_str}/{day_str}"
-    path = "/proj_tensix/user_dev/sjaju/work/mar/18"
+    # path = "/proj_tensix/user_dev/sjaju/work/feb/19"
+    # path = "/proj_tensix/user_dev/sjaju/work/mar/18"
+    path = "/proj_tensix/user_dev/sjaju/work/july/01"
     month_str = None
     day_str = None
     del month_str
@@ -320,6 +320,7 @@ if "__main__" == __name__:
     rtl_args["remote_root_dir_path"] = path
     rtl_args["local_root_dir_path"] = os.getcwd()
     rtl_args["rtl_tag"] = "".join(rtl_args["remote_root_dir_path"].split(os.path.sep)[-2:])
+    rtl_args["local_root_dir"] = f"from-{rtl_args['remote_root_dir']}-{rtl_args['rtl_tag']}"
 
     rtl_utils.copy.safe_connection(host = rtl_args["ird_server"], user = rtl_args["username"], connect_kwargs = {"key_filename": rtl_args["ssh_key_file"]})
 
@@ -340,11 +341,12 @@ if "__main__" == __name__:
     polaris_big_args["cfg_order_scheme"]           = [ [0,1], [0,1], [0,1,2], [1,2] ]
     polaris_big_args["cfg_risc.cpi"]               = 1.0
     polaris_big_args["default_cfg_file_name"]      = f"ttqs_neo4_{rtl_args["rtl_tag"]}.json"
+    polaris_big_args["default_cfg_file_name"]      = f"ttqs_neo4_mar18.json"
     polaris_big_args["force"]                      = rtl_args["force"] # rtl_args["force"]
     polaris_big_args["instruction_kind"]           = "ttqs"
     polaris_big_args["model_cfg_dir"]              = "__config_files"
     polaris_big_args["model_cfg_file_prefix"]      = "cfg_"
-    polaris_big_args["model_git_branch"]           = "19-correct-dependencies-of-tneosim" # pb branch
+    polaris_big_args["model_git_branch"]           = "main" # pb branch
     polaris_big_args["model_git_url"]              = "git@github.com:vmgeorgeTT/polaris_big.git"
     polaris_big_args["model_inputcfg_file_prefix"] = "inputcfg_"
     polaris_big_args["model_log_file_suffix"]      = ".model_test.log"
@@ -375,21 +377,17 @@ if "__main__" == __name__:
     polaris_big_args["model_root_dir_path"]        = os.getcwd()
     polaris_big_args["model_instruction_sets_dir"] = "instructions_sets"
 
-    check_rtl_test_bench_path_clone_and_build_if_required(path, rtl_args["remote_root_dir"], machine, port, rtl_args["username"])
-
-    # tests, tags, suites, yml files.
-    #   options:
-    #     1. for given suits, get tags, get tests associated with these tags in yml files.
-    #     2. get all tests from yml files.
-    #     3.
+    # check_rtl_test_bench_path_clone_and_build_if_required(path, rtl_args["remote_root_dir"], machine, port, rtl_args["username"])
 
     tests = sorted(rtl_utils.test_names.get_tests(rtl_args))
     tests = [test for test in tests if "t6-quas-n4-ttx-matmul-l1-acc-multicore-height-sharded-mxfp4_a-llk" != test]
     print(f"- found {len(tests)} tests.")
-    for idx, test in enumerate(tests):
+    for idx, test in enumerate(sorted(tests)):
         print(f"  - {idx:>{int(math.log(len(tests))) + 1}}. {test}")
 
     rtl_utils.rtl_tests.execute_tests(tests, rtl_args)
     polaris_big_utils.polaris_big_tests.execute_tests(tests, rtl_args, polaris_big_args)
+    # status_utils.write_status_to_csv(tests, rtl_args, polaris_big_args)
+    status_utils.get_tests_status(tests, rtl_args, polaris_big_args)
 
     ird_release(selID)
