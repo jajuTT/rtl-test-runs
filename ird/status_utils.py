@@ -457,7 +457,7 @@ def print_status(tests, rtl_args, model_args, sort_pass_rate_by = "class"):
     print("+ Status by test class")
     print(status_by_class_to_str(get_status_by_class(statuses)))
     print()
-    print("+Number of cycles: Test, Model, RTL, model/rtl")
+    print("+ Number of cycles: Test, Model, RTL, model/rtl")
     print_num_cycles_model_by_rtl(get_num_cycles_model_by_rtl_from_statuses(statuses))
 
 
