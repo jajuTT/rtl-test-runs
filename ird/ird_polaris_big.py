@@ -382,7 +382,7 @@ if "__main__" == __name__:
         "PACKER0"   : ["PUSH_TILES"],
         "UNPACKER0" : ["POP_TILES", "UNPACR_DEST_TILE", "UNPACR_DEST_TILE_INC", "UNPACR_DEST_FACE", "UNPACR_DEST_FACE_INC", "UNPACR_DEST_ROW", "UNPACR_DEST_ROW_INC", "UNPACR_DEST_STRIDE"]}
 
-    # check_rtl_test_bench_path_clone_and_build_if_required(path, rtl_args["remote_root_dir"], machine, port, rtl_args["username"])
+    check_rtl_test_bench_path_clone_and_build_if_required(path, rtl_args["remote_root_dir"], machine, port, rtl_args["username"])
 
     tests = sorted(rtl_utils.test_names.get_tests(rtl_args))
     tests = [test for test in tests if "t6-quas-n4-ttx-matmul-l1-acc-multicore-height-sharded-mxfp4_a-llk" != test]
@@ -390,7 +390,7 @@ if "__main__" == __name__:
     for idx, test in enumerate(sorted(tests)):
         print(f"  - {idx:>{int(math.log(len(tests))) + 1}}. {test}")
 
-    # rtl_utils.rtl_tests.execute_tests(tests, rtl_args)
+    rtl_utils.rtl_tests.execute_tests(tests, rtl_args)
     polaris_big_utils.polaris_big_tests.execute_tests(tests, rtl_args, polaris_big_args)
     # status_utils.get_tests_status(tests, rtl_args, polaris_big_args)
     status_utils.print_status(tests, rtl_args, polaris_big_args)
