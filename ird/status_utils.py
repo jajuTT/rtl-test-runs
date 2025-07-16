@@ -21,10 +21,10 @@ def get_test_classes():
 
 def get_failure_bins():
     bins = [
-        ["attribs expected. Received"], 
-        ["IndexError"], 
-        ["Timeout", "reached for pipe"], 
-        ["Timeout", "reached for valid check"], 
+        ["attribs expected. Received"],
+        ["IndexError"],
+        ["Timeout", "reached for pipe"],
+        ["Timeout", "reached for valid check"],
         ["Too many resources to select from"]
     ]
 
@@ -41,7 +41,7 @@ def get_failure_bin_index(msg):
     for idx, b in enumerate(get_failure_bins_as_str()):
         if b == msg:
             return idx
-        
+
     return idx + 1
 
 
@@ -65,14 +65,14 @@ def get_rtl_test_status(test, rtl_args):
             return (True, yml['res'], yml['total-cycles'])
     else:
         return (False, None, None)
-    
+
 def get_failure_bin(msg, test):
     bins = get_failure_bins()
 
     for strings in bins:
         if len(strings) == sum([1 for s in strings if s in msg]):
             return " ".join([s for s in strings])
-        
+
     raise Exception(f"- error: could not find failure bin for test {test}. msg = {msg}")
 
 def get_model_test_status(test, model_args):
@@ -105,7 +105,7 @@ def get_test_status(test, rtl_args, model_args):
     found_model_test, model_res, model_num_cycles = get_model_test_status(test, model_args)
     if (PASS == model_res) and (not isinstance(model_num_cycles, int)):
         raise Exception(f"- error: expected model_num_cycles for test {test} to be of type int as model_res is equal to {PASS}, instead received type(model_num_cycles) = {type(model_num_cycles)}, model_num_cycles = {model_num_cycles}")
-    
+
     status = dict()
     status["model"]               = dict()
     status["model"]["found_test"] = found_model_test
@@ -186,7 +186,7 @@ def get_model_errors_from_statuses(statuses):
             model_errors[num_cycles].append(key)
 
     return model_errors
-    
+
 def get_model_errors(tests, rtl_args, model_args):
     statuses = get_tests_statuses(tests, rtl_args, model_args)
     return get_model_errors_from_statuses(statuses)
@@ -204,7 +204,7 @@ def model_errors_to_str(model_errors):
 
 def print_model_errors(model_errors):
     print(model_errors_to_str(model_errors))
-    
+
 def get_num_cycles_model_by_rtl_from_statuses(statuses):
     PASS = "PASS"
     perf_nums = dict()
@@ -220,7 +220,7 @@ def get_num_cycles_model_by_rtl_from_statuses(statuses):
                 perf_nums[key] = [num_cycles_model, num_cycles_rtl, float(num_cycles_model) / float(num_cycles_rtl)]
             else:
                 raise Exception(f"- error: expected num cycles to be int, received: type(num_cycles_rtl): {type(num_cycles_rtl)}, type(num_cycles_model): {type(num_cycles_model)}")
-            
+
     return perf_nums
 
 def get_num_cycles_model_by_rtl(tests, rtl_args, model_args):
@@ -233,14 +233,14 @@ def num_cycles_model_by_rtl_to_str(tests_num_cycles, sort_by = "model_by_rtl"):
         for idx, option in enumerate(sort_by_options):
             if option == sort_by:
                 return idx
-            
+
         raise Exception(f"- error: can not determine sort order from given option {sort_by}")
-    
+
     sort_by_idx = get_sort_by_index(sort_by)
     max_test_len = max([len(test) for test in tests_num_cycles.keys()])
     max_idx_len = math.ceil(math.log(len(tests_num_cycles)))
-    max_model_num_cycles_len = math.ceil(math.log10(max(num_cycles[0] for num_cycles in tests_num_cycles.values())))
-    max_rtl_num_cycles_len = math.ceil(math.log10(max(num_cycles[get_sort_by_index("model")] for num_cycles in tests_num_cycles.values())))
+    max_model_num_cycles_len = math.ceil(math.log10(max(num_cycles[get_sort_by_index("model")] for num_cycles in tests_num_cycles.values())))
+    max_rtl_num_cycles_len = math.ceil(math.log10(max(num_cycles[get_sort_by_index("rtl")] for num_cycles in tests_num_cycles.values())))
     msg = ""
     for idx, test in enumerate(sorted(tests_num_cycles.items(), key = lambda x: x[1][sort_by_idx])):
         msg += f"{idx:>{max_idx_len}}. {test[0]:<{max_test_len}}: {test[1][0]:>{max_model_num_cycles_len}}, {test[1][1]:>{max_rtl_num_cycles_len}}, {test[1][2]:.2f}\n"
@@ -275,11 +275,11 @@ def pass_rate_by_class_to_str(pass_rate, sort_by = "class"):
         for idx, option in enumerate(sort_by_options):
             if option == sort_by:
                 return idx
-            
+
         raise Exception(f"- error: can not determine sort order from given option {sort_by}")
-    
+
     pass_rate = copy.deepcopy(pass_rate)
-    
+
     overall = "Overall"
     assert overall not in pass_rate.keys()
     num_pass = sum([pass_rate[c][0] for c in pass_rate.keys()])
@@ -293,7 +293,7 @@ def pass_rate_by_class_to_str(pass_rate, sort_by = "class"):
     max_len_num_tests = math.ceil(math.log10(max([num_pass[1] for num_pass in pass_rate.values()])))
 
     del pass_rate[overall]
-    
+
     msg = "Pass rate: Class, # PASS, # Tests, %\n"
     if "class" == sort_by:
         for idx, c in enumerate(sorted(pass_rate.keys())):
@@ -311,10 +311,10 @@ def pass_rate_by_class_to_str(pass_rate, sort_by = "class"):
 
 def get_failure_bins_from_statuses(statuses):
     bins = [
-        ["Too many resources to select from"], 
-        ["Timeout", "reached for valid check"], 
-        ["Timeout", "reached for pipe"], 
-        ["attribs expected. Received"], 
+        ["Too many resources to select from"],
+        ["Timeout", "reached for valid check"],
+        ["Timeout", "reached for pipe"],
+        ["attribs expected. Received"],
         ["IndexError"]
     ]
 
@@ -424,7 +424,7 @@ def status_by_class_to_str(statuses): # classes_statuses
     for idx in range(len(status_dict["num_fail"])):
         assert status_dict["num_fail"][idx] == sum(status["num_fail"][idx] for status in statuses.values())
     assert status_dict["num_pass"] + sum(status_dict["num_fail"]) == len(status_dict["tests"])
-    
+
     statuses[overall] = status_dict
 
     max_idx_len       = math.ceil(math.log10(len(statuses)))
@@ -448,7 +448,7 @@ def status_by_class_to_str(statuses): # classes_statuses
             msg += f"    - {failure_bins_as_str[fidx]:<{max_bin_str_len}}: {status['num_fail'][fidx]:>{max_num_fails_len}}\n"
 
     return msg
-        
+
 
 def print_status(tests, rtl_args, model_args, sort_pass_rate_by = "class"):
     statuses = get_tests_statuses(tests, rtl_args, model_args)
@@ -461,7 +461,7 @@ def print_status(tests, rtl_args, model_args, sort_pass_rate_by = "class"):
     print_num_cycles_model_by_rtl(get_num_cycles_model_by_rtl_from_statuses(statuses))
 
 
-    
+
 
     # model_errors = get_model_errors_from_statuses(statuses)
     # num_cycles = get_num_cycles_model_by_rtl_from_statuses(statuses)
