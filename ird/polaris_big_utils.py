@@ -47,8 +47,8 @@ class polaris_big_tests:
         # for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_t3sim_")]:
         #     assert key in model_args.keys(), f"- error: {key} not found in given args dict"
 
-        # rtl_utils.rtl_tests.copy_partial_src(rtl_args)        
-        
+        # rtl_utils.rtl_tests.copy_partial_src(rtl_args)
+
         # rtl_root_dir_incl_path = os.path.join(rtl_args[key_rtl_local_root_dir_path], rtl_args[key_rtl_local_root_dir])
         # rtl_isa_file_name_incl_path = rtl_utils.test_names.get_file_name_incl_path(rtl_root_dir_incl_path, rtl_args[key_rtl_isa_file_name])
         # if not os.path.isfile(rtl_isa_file_name_incl_path):
@@ -130,7 +130,7 @@ class polaris_big_tests:
             if not os.path.isfile(rtl_isa_file_name_incl_path):
                 raise Exception(f"- error: could not find file {rtl_isa_file_name_incl_path}")
 
-            polaris_big_dir_incl_path = os.path.join(model_args[key_model_root_dir_path], model_args[key_model_root_dir])            
+            polaris_big_dir_incl_path = os.path.join(model_args[key_model_root_dir_path], model_args[key_model_root_dir])
             polaris_big_isa_file_incl_path = [ele for ele in rtl_utils.test_names.get_file_names_incl_path(polaris_big_dir_incl_path, rtl_args[key_rtl_isa_file_name]) if os.path.join(model_args[key_model_instruction_kind], rtl_args[key_rtl_isa_file_name]) in ele]
             print("polaris_big_dir_incl_path: ", polaris_big_dir_incl_path)
             print("polaris_big_isa_file_incl_path: ", polaris_big_isa_file_incl_path)
@@ -182,7 +182,7 @@ class polaris_big_tests:
             json.dump(cfg_dict, file, indent = 2)
 
         return file_name
-    
+
     @staticmethod
     def get_inputcfg(test_id, test, rtl_args, model_args):
         key_model_start_function    = "start_function"
@@ -264,7 +264,7 @@ class polaris_big_tests:
                 input_cfg[tc_key][f"th2Elf"]  = ""
 
         return input_cfg_dict
-    
+
     @staticmethod
     def write_inputcfg_file(test_id, test, rtl_args, model_args):
         key_root_dir        = "model_root_dir"
@@ -289,7 +289,7 @@ class polaris_big_tests:
             json.dump(input_cfg_dict, file, indent = 2)
 
         return file_name
-    
+
     @staticmethod
     def execute_test(test_id, test, rtl_args, model_args):
         key_model_log_file_suffix = "model_log_file_suffix"
@@ -302,16 +302,16 @@ class polaris_big_tests:
 
         inputcfg_file_name = polaris_big_tests.write_inputcfg_file(test_id, test, rtl_args, model_args)
         cfg_file_name = polaris_big_tests.write_cfg_file(test_id, test, rtl_args, model_args)
-        
+
         pb_dir_incl_path = os.path.join(model_args[key_model_root_dir_path], model_args[key_model_root_dir])
         odir_incl_path = os.path.join(pb_dir_incl_path, model_args[key_model_odir])
         log_file_name = os.path.join(odir_incl_path, f"{test}{model_args[key_model_log_file_suffix]}")
 
         if not os.path.isdir(odir_incl_path):
             os.makedirs(odir_incl_path, exist_ok = True)
-        
+
         cmds = [
-            f"cd {pb_dir_incl_path}", 
+            f"cd {pb_dir_incl_path}",
             f"PYTHONPATH='.' python ttsim/back/tensix_neo/tneoSim.py --cfg {cfg_file_name} --inputcfg {inputcfg_file_name} --odir {model_args[key_model_odir]}"
         ]
         cmd = " && ".join(cmds)

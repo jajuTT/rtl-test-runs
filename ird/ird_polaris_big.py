@@ -305,7 +305,7 @@ if "__main__" == __name__:
     rtl_args["username"]              = getpass.getuser()
     rtl_args["ird_server"]            = "yyz-ird"
     rtl_args["src_dir"]               = "src"
-    rtl_args["isa_file_name"]         = "assembly.yaml"    
+    rtl_args["isa_file_name"]         = "assembly.yaml"
 
     # month_str =  datetime.datetime.now().strftime('%B').lower()
     # day_str   = f"{datetime.datetime.now().day:02d}"
@@ -320,6 +320,8 @@ if "__main__" == __name__:
     rtl_args["remote_root_dir_path"] = path
     rtl_args["local_root_dir_path"] = os.getcwd()
     rtl_args["rtl_tag"] = "".join(rtl_args["remote_root_dir_path"].split(os.path.sep)[-2:])
+    if "july01" == rtl_args["rtl_tag"]:
+        rtl_args["rtl_tag"] = "jul1"
     rtl_args["local_root_dir"] = f"from-{rtl_args['remote_root_dir']}-{rtl_args['rtl_tag']}"
 
     rtl_utils.copy.safe_connection(host = rtl_args["ird_server"], user = rtl_args["username"], connect_kwargs = {"key_filename": rtl_args["ssh_key_file"]})
@@ -376,6 +378,9 @@ if "__main__" == __name__:
     polaris_big_args["model_root_dir"]             = polaris_big_args["model_git_url"].split("/")[-1][:-4]
     polaris_big_args["model_root_dir_path"]        = os.getcwd()
     polaris_big_args["model_instruction_sets_dir"] = "instructions_sets"
+    polaris_big_args["engines_mnemonics"]          = {
+        "PACKER0"   : ["PUSH_TILES"],
+        "UNPACKER0" : ["POP_TILES", "UNPACR_DEST_TILE", "UNPACR_DEST_TILE_INC", "UNPACR_DEST_FACE", "UNPACR_DEST_FACE_INC", "UNPACR_DEST_ROW", "UNPACR_DEST_ROW_INC", "UNPACR_DEST_STRIDE"]}
 
     # check_rtl_test_bench_path_clone_and_build_if_required(path, rtl_args["remote_root_dir"], machine, port, rtl_args["username"])
 
@@ -386,7 +391,7 @@ if "__main__" == __name__:
         print(f"  - {idx:>{int(math.log(len(tests))) + 1}}. {test}")
 
     # rtl_utils.rtl_tests.execute_tests(tests, rtl_args)
-    # polaris_big_utils.polaris_big_tests.execute_tests(tests, rtl_args, polaris_big_args)
+    polaris_big_utils.polaris_big_tests.execute_tests(tests, rtl_args, polaris_big_args)
     # status_utils.get_tests_status(tests, rtl_args, polaris_big_args)
     status_utils.print_status(tests, rtl_args, polaris_big_args)
 

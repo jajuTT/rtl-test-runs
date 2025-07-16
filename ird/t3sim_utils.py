@@ -506,6 +506,42 @@ class cfg_engines:
         return new_engines
 
     @staticmethod
+    def set_exclusive_engines_instructions(model_args, engines):
+        key_engines_mnemonics = "engines_mnemonics"
+
+        if key_engines_mnemonics not in model_args.keys():
+            return
+
+        key_engine_instructions = "engineInstructions"
+        key_engine_name = "engineName"
+        key_name = "name"
+
+        # for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_")]:
+        #     assert key in model_args.keys(), f"- error: {key} not found in given model_args dict"
+
+        for excl_engine, mnemonics in model_args[key_engines_mnemonics].items():
+            for mnemonic in mnemonics:
+                for engine_idx, engine in enumerate(engines):
+                    if engine[key_engine_name] == excl_engine:
+                        has_mnemonic = False
+                        for elem in engine[key_engine_instructions]:
+                            if elem[key_name] == mnemonic:
+                                has_mnemonic = True
+                                break
+
+                        if not has_mnemonic:
+                            raise Exception(f"- error: engine/pipe {excl_engine} does not contain instruction {mnemonic}")
+                    else:
+                        id_to_pop = None # len(engine[key_engine_instructions])
+                        for idx, elem in enumerate(engine[key_engine_instructions]):
+                            if elem[key_name] == mnemonic:
+                                id_to_pop = idx
+                                break
+
+                        if id_to_pop is not None:
+                            engines[engine_idx][key_engine_instructions].pop(id_to_pop)
+
+    @staticmethod
     def get_engines(t3sim_args):
 
         engines = cfg_engines.get_engines_incl_mnemonics_througputs(t3sim_args)
@@ -515,6 +551,9 @@ class cfg_engines:
 
         # split unpacker
         cfg_engines.split_packer_unpacker("UNPACK", "UNPACKER", engines)
+
+        #
+        cfg_engines.set_exclusive_engines_instructions(t3sim_args, engines)
 
         # add engine_groups
         cfg_engines.add_engine_groups(engines)
