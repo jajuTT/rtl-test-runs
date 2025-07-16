@@ -392,7 +392,6 @@ if "__main__" == __name__:
 
     rtl_utils.rtl_tests.execute_tests(tests, rtl_args)
     polaris_big_utils.polaris_big_tests.execute_tests(tests, rtl_args, polaris_big_args)
-    # status_utils.get_tests_status(tests, rtl_args, polaris_big_args)
     status_utils.print_status(tests, rtl_args, polaris_big_args)
 
     ird_release(selID)
