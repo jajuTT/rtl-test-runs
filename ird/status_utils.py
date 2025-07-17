@@ -589,6 +589,61 @@ def plot_s_curve(tests_num_cycles, file_to_write = ""):
 
     print("- end of s curve")
 
+def plot_test_class_wise_s_curve(tests, rtl_args, model_args, file_to_write):
+    sort_by = "model_by_rtl"
+    statuses = get_tests_statuses(tests, rtl_args, model_args)
+    perf_nums = get_test_class_wise_num_cycles_model_by_rtl_from_statuses(statuses)
+    sort_by_idx = get_sort_by_index_for_num_cycles_model_by_rtl(sort_by)
+    x_dict = dict()
+    x_labels = dict()
+    idx_x = 1
+    maxy = -1
+    miny = 0
+    for test_class in sorted(perf_nums.keys()):
+        tests_num_cycles = perf_nums[test_class]
+        if 0 != len(tests_num_cycles):
+            for test_num_cycles in sorted(tests_num_cycles.items(), key = lambda x: x[1][sort_by_idx]):
+                test = test_num_cycles[0]
+                maxy = max(maxy, test_num_cycles[1][sort_by_idx])
+                x_dict[test] = idx_x
+                idx_x += 1
+
+    # Get colors from the default color cycle
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+
+    fig, ax = plt.subplots(figsize=(8, 4))
+
+    for test_class_idx, test_class in enumerate(sorted(perf_nums.keys())):
+        tests_num_cycles = perf_nums[test_class]
+        tests = []
+        for test_num_cycles in sorted(tests_num_cycles.items(), key = lambda x: x[1][sort_by_idx]):
+            test = test_num_cycles[0]
+            tests.append(test)
+
+        x = [x_dict[test] for test in tests]
+        y = [tests_num_cycles[test][sort_by_idx] for test in tests]
+        for idx, test in enumerate(tests):
+            x_labels[test] = f"{test} ({y[idx]:.2f})"
+        ax.plot(x, y, color = "black", linewidth = 1, alpha = 0.5)
+        # ax.scatter(x, y, alpha = 0.5)
+
+        ax.axvspan(min(x) - 0.5, max(x) + 0.5, color = colors[test_class_idx], alpha=0.05)
+        y_for_text = maxy - (maxy - miny) * 0.07 if len(x) > 4 else maxy
+        ax.text(min(x), y_for_text, test_class, color = colors[test_class_idx])
+
+    # Labels and title
+    ax.set_xlabel("Tests")
+    ax.set_ylabel("Perf comparison (PM/RTL)")
+    # ax.set_title("col1 vs col5 Plot")
+    ax.set_xticks(list(x_dict.values()))
+    ax.set_xticklabels(list(x_labels.values()))
+    ax.tick_params(axis='x', labelrotation=90, labelsize = 6)
+
+    plt.savefig(f"test_class_wise_s_curve_{file_to_write}.svg", format="svg", bbox_inches="tight", dpi = 512)
+    plt.savefig(f"test_class_wise_s_curve_{file_to_write}.png", format="png", bbox_inches="tight", dpi = 512)
+
+
+
 
 
 def write_status_to_csv(rtl_args, model_args):
