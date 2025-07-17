@@ -296,6 +296,9 @@ class polaris_big_tests:
         key_model_odir = "model_odir"
         key_model_root_dir = "model_root_dir"
         key_model_root_dir_path = "model_root_dir_path"
+        key_model_simreport = "model_simreport"
+        key_model_log_file_end = "model_log_file_end"
+        key_model_force = "force"
 
         for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_model_")]:
             assert key in model_args.keys(), f"- error: {key} not found in given rtl_args dict"
@@ -309,6 +312,20 @@ class polaris_big_tests:
 
         if not os.path.isdir(odir_incl_path):
             os.makedirs(odir_incl_path, exist_ok = True)
+
+        if not model_args[key_model_force]:
+            skip_test = True
+            if os.path.isfile(log_file_name):
+                with open(log_file_name) as file:
+                    lines = file.readlines()
+                    if not lines[-1].strip().startswith(model_args[key_model_log_file_end]):
+                        skip_test = False
+
+            if skip_test:
+                for pwd, _, files in os.walk(odir_incl_path):
+                    for file in files:
+                        if file.startswith(model_args[key_model_simreport]) and (test in file):
+                            return
 
         cmds = [
             f"cd {pb_dir_incl_path}",

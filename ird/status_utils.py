@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
+import copy
 import datetime
 import math
+import matplotlib.pyplot as plt
 import os
 import rtl_utils
 import yaml
-import copy
 
 def get_test_classes():
     classes = dict()
@@ -28,7 +29,7 @@ def get_failure_bins():
         ["Too many resources to select from"]
     ]
 
-    return bins
+    return sorted(bins)
 
 def get_failure_bins_as_str():
     str_bins = list()
@@ -43,8 +44,6 @@ def get_failure_bin_index(msg):
             return idx
 
     return idx + 1
-
-
 
 def get_rtl_test_status(test, rtl_args):
     key_local_root_dir = "local_root_dir"
@@ -99,6 +98,22 @@ def get_model_test_status(test, model_args):
     else:
         return (False, None, None)
 
+def get_test_class(test):
+    classes = get_test_classes()
+
+    test_words = test.split("-")
+
+    test_class = None
+    for key, values in classes.items():
+        for value in values:
+            if value in test_words:
+                test_class = key
+
+    if not test_class:
+        raise Exception(f"- error: could not determine test class for {test}")
+
+    return test_class
+
 def get_test_status(test, rtl_args, model_args):
     PASS = "PASS"
     found_rtl_test, rtl_res, rtl_num_cycles = get_rtl_test_status(test, rtl_args)
@@ -127,26 +142,6 @@ def get_tests_statuses(tests, rtl_args, model_args):
         statuses[test] = get_test_status(test, rtl_args, model_args)
 
     return statuses
-
-def get_test_class(test):
-    classes = get_test_classes()
-
-    # fields = test.split("-")
-    # test_bin = fields[5] if fields[4].startswith("fp") else fields[4]
-    # test_class = "SFPU" if test_bin in sfpu_bins else "ELTW" if test_bin in elw_bins else test_bin.upper()
-
-    test_words = test.split("-")
-
-    test_class = None
-    for key, values in classes.items():
-        for value in values:
-            if value in test_words:
-                test_class = key
-
-    if not test_class:
-        raise Exception(f"- error: could not determine test class for {test}")
-
-    return test_class
 
 def get_tests_classes(tests):
     tests_classes = dict()
@@ -222,6 +217,59 @@ def get_num_cycles_model_by_rtl_from_statuses(statuses):
                 raise Exception(f"- error: expected num cycles to be int, received: type(num_cycles_rtl): {type(num_cycles_rtl)}, type(num_cycles_model): {type(num_cycles_model)}")
 
     return perf_nums
+
+def get_test_class_wise_num_cycles_model_by_rtl_from_statuses(statuses):
+    PASS = "PASS"
+    perf_nums = dict()
+    for test in sorted(statuses.keys()):
+        status = statuses[test]
+        found_model = status["model"]["found_test"]
+        found_rtl = status["rtl"]["found_test"]
+        num_cycles_model = status["model"]["num_cycles"]
+        num_cycles_rtl = status["rtl"]["num_cycles"]
+        result_model = status["model"]["result"]
+        result_rtl = status["rtl"]["result"]
+        test_class = status["class"]
+        if found_model and found_rtl and (PASS == result_model) and (PASS == result_rtl):
+            if test_class not in perf_nums.keys():
+                perf_nums[test_class] = dict()
+            perf_nums[test_class][test] = [num_cycles_model, num_cycles_rtl, float(num_cycles_model)/float(num_cycles_rtl)]
+
+    sorted_perf_nums = dict()
+    for key in sorted(perf_nums.keys()):
+        value = perf_nums[key]
+        sorted_perf_nums[key] = {value_key : value[value_key] for value_key in sorted(value.keys())}
+
+    return sorted_perf_nums
+
+def get_sort_by_index_for_num_cycles_model_by_rtl(sort_by):
+    sort_by_options = ["model", "rtl", "model_by_rtl"]
+    for idx, option in enumerate(sort_by_options):
+        if option == sort_by:
+            return idx
+
+    raise Exception(f"- error: can not determine sort order from given option {sort_by}")
+
+def test_class_wise_num_cycles_model_by_rtl_to_str(perf_nums, sort_by = "model_by_rtl"):
+    sort_by_idx = get_sort_by_index_for_num_cycles_model_by_rtl(sort_by)
+    max_test_len = max([max(len(key) for key in perf_nums[test_class].keys()) for test_class in perf_nums.keys()])
+    max_idx_len = math.ceil(math.log(max([len(value) for key, value in perf_nums.items()])))
+    max_model_num_cycles_len = math.ceil(math.log10(max([max(value[get_sort_by_index_for_num_cycles_model_by_rtl("model")] for value in perf_nums[test_class].values()) for test_class in perf_nums.keys()])))
+    max_rtl_num_cycles_len = math.ceil(math.log10(max([max(value[get_sort_by_index_for_num_cycles_model_by_rtl("rtl")] for value in perf_nums[test_class].values()) for test_class in perf_nums.keys()])))
+    msg = ""
+    for test_class in sorted(perf_nums.keys()):
+        msg += f"+ Test class: {test_class}\n"
+        tests_num_cycles = perf_nums[test_class]
+        if 0 != len(tests_num_cycles):
+            for idx, test_num_cycles in enumerate(sorted(tests_num_cycles.items(), key = lambda x: x[1][sort_by_idx])):
+                test = test_num_cycles[0]
+                num_cycles = test_num_cycles[1]
+                msg += f"  {idx:>{max_idx_len}}. {test:<{max_test_len}}: {num_cycles[0]:>{max_model_num_cycles_len}}, {num_cycles[1]:>{max_rtl_num_cycles_len}}, {num_cycles[2]:.2f}\n"
+
+    return msg.rstrip()
+
+
+
 
 def get_num_cycles_model_by_rtl(tests, rtl_args, model_args):
     statuses = get_tests_statuses(tests, rtl_args, model_args)
@@ -503,6 +551,9 @@ def print_status(tests, rtl_args, model_args, sort_pass_rate_by = "class"):
     print()
     print("+ Number of cycles: Test, Model, RTL, model/rtl")
     print_num_cycles_model_by_rtl(get_num_cycles_model_by_rtl_from_statuses(statuses))
+    print()
+    print("+ Test class wise number of cycles. Test, model, RTL, model/rtl")
+    print(test_class_wise_num_cycles_model_by_rtl_to_str(get_test_class_wise_num_cycles_model_by_rtl_from_statuses(statuses)))
     print()
     print("+ Failed tests by test class")
     print(failed_tests_by_test_class_to_str(classes_statuses))
