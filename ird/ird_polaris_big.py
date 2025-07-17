@@ -381,6 +381,8 @@ if "__main__" == __name__:
     polaris_big_args["engines_mnemonics"]          = {
         "PACKER0"   : ["PUSH_TILES"],
         "UNPACKER0" : ["POP_TILES", "UNPACR_DEST_TILE", "UNPACR_DEST_TILE_INC", "UNPACR_DEST_FACE", "UNPACR_DEST_FACE_INC", "UNPACR_DEST_ROW", "UNPACR_DEST_ROW_INC", "UNPACR_DEST_STRIDE"]}
+    polaris_big_args["model_simreport"] = "simreport_"
+    polaris_big_args["model_log_file_end"] = "Simreport = "
 
     check_rtl_test_bench_path_clone_and_build_if_required(path, rtl_args["remote_root_dir"], machine, port, rtl_args["username"])
 
