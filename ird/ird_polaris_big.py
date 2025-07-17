@@ -381,6 +381,8 @@ if "__main__" == __name__:
     polaris_big_args["engines_mnemonics"]          = {
         "PACKER0"   : ["PUSH_TILES"],
         "UNPACKER0" : ["POP_TILES", "UNPACR_DEST_TILE", "UNPACR_DEST_TILE_INC", "UNPACR_DEST_FACE", "UNPACR_DEST_FACE_INC", "UNPACR_DEST_ROW", "UNPACR_DEST_ROW_INC", "UNPACR_DEST_STRIDE"]}
+    polaris_big_args["model_simreport"] = "simreport_"
+    polaris_big_args["model_log_file_end"] = "Simreport = "
 
     check_rtl_test_bench_path_clone_and_build_if_required(path, rtl_args["remote_root_dir"], machine, port, rtl_args["username"])
 
@@ -392,7 +394,7 @@ if "__main__" == __name__:
 
     rtl_utils.rtl_tests.execute_tests(tests, rtl_args)
     polaris_big_utils.polaris_big_tests.execute_tests(tests, rtl_args, polaris_big_args)
-    # status_utils.get_tests_status(tests, rtl_args, polaris_big_args)
     status_utils.print_status(tests, rtl_args, polaris_big_args)
+    status_utils.plot_s_curve(status_utils.get_num_cycles_model_by_rtl(tests, rtl_args, polaris_big_args), rtl_args['rtl_tag'])
 
     ird_release(selID)

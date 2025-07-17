@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
+import copy
 import datetime
 import math
+import matplotlib.pyplot as plt
 import os
 import rtl_utils
 import yaml
-import copy
 
 def get_test_classes():
     classes = dict()
@@ -28,7 +29,7 @@ def get_failure_bins():
         ["Too many resources to select from"]
     ]
 
-    return bins
+    return sorted(bins)
 
 def get_failure_bins_as_str():
     str_bins = list()
@@ -43,8 +44,6 @@ def get_failure_bin_index(msg):
             return idx
 
     return idx + 1
-
-
 
 def get_rtl_test_status(test, rtl_args):
     key_local_root_dir = "local_root_dir"
@@ -99,6 +98,22 @@ def get_model_test_status(test, model_args):
     else:
         return (False, None, None)
 
+def get_test_class(test):
+    classes = get_test_classes()
+
+    test_words = test.split("-")
+
+    test_class = None
+    for key, values in classes.items():
+        for value in values:
+            if value in test_words:
+                test_class = key
+
+    if not test_class:
+        raise Exception(f"- error: could not determine test class for {test}")
+
+    return test_class
+
 def get_test_status(test, rtl_args, model_args):
     PASS = "PASS"
     found_rtl_test, rtl_res, rtl_num_cycles = get_rtl_test_status(test, rtl_args)
@@ -127,26 +142,6 @@ def get_tests_statuses(tests, rtl_args, model_args):
         statuses[test] = get_test_status(test, rtl_args, model_args)
 
     return statuses
-
-def get_test_class(test):
-    classes = get_test_classes()
-
-    # fields = test.split("-")
-    # test_bin = fields[5] if fields[4].startswith("fp") else fields[4]
-    # test_class = "SFPU" if test_bin in sfpu_bins else "ELTW" if test_bin in elw_bins else test_bin.upper()
-
-    test_words = test.split("-")
-
-    test_class = None
-    for key, values in classes.items():
-        for value in values:
-            if value in test_words:
-                test_class = key
-
-    if not test_class:
-        raise Exception(f"- error: could not determine test class for {test}")
-
-    return test_class
 
 def get_tests_classes(tests):
     tests_classes = dict()
@@ -223,24 +218,66 @@ def get_num_cycles_model_by_rtl_from_statuses(statuses):
 
     return perf_nums
 
+def get_test_class_wise_num_cycles_model_by_rtl_from_statuses(statuses):
+    PASS = "PASS"
+    perf_nums = dict()
+    for test in sorted(statuses.keys()):
+        status = statuses[test]
+        found_model = status["model"]["found_test"]
+        found_rtl = status["rtl"]["found_test"]
+        num_cycles_model = status["model"]["num_cycles"]
+        num_cycles_rtl = status["rtl"]["num_cycles"]
+        result_model = status["model"]["result"]
+        result_rtl = status["rtl"]["result"]
+        test_class = status["class"]
+        if found_model and found_rtl and (PASS == result_model) and (PASS == result_rtl):
+            if test_class not in perf_nums.keys():
+                perf_nums[test_class] = dict()
+            perf_nums[test_class][test] = [num_cycles_model, num_cycles_rtl, float(num_cycles_model)/float(num_cycles_rtl)]
+
+    sorted_perf_nums = dict()
+    for key in sorted(perf_nums.keys()):
+        value = perf_nums[key]
+        sorted_perf_nums[key] = {value_key : value[value_key] for value_key in sorted(value.keys())}
+
+    return sorted_perf_nums
+
+def get_sort_by_index_for_num_cycles_model_by_rtl(sort_by):
+    sort_by_options = ["model", "rtl", "model_by_rtl"]
+    for idx, option in enumerate(sort_by_options):
+        if option == sort_by:
+            return idx
+
+    raise Exception(f"- error: can not determine sort order from given option {sort_by}")
+
+def test_class_wise_num_cycles_model_by_rtl_to_str(perf_nums, sort_by = "model_by_rtl"):
+    sort_by_idx = get_sort_by_index_for_num_cycles_model_by_rtl(sort_by)
+    max_test_len = max([max(len(key) for key in perf_nums[test_class].keys()) for test_class in perf_nums.keys()])
+    max_idx_len = math.ceil(math.log(max([len(value) for key, value in perf_nums.items()])))
+    max_model_num_cycles_len = math.ceil(math.log10(max([max(value[get_sort_by_index_for_num_cycles_model_by_rtl("model")] for value in perf_nums[test_class].values()) for test_class in perf_nums.keys()])))
+    max_rtl_num_cycles_len = math.ceil(math.log10(max([max(value[get_sort_by_index_for_num_cycles_model_by_rtl("rtl")] for value in perf_nums[test_class].values()) for test_class in perf_nums.keys()])))
+    msg = ""
+    for test_class in sorted(perf_nums.keys()):
+        msg += f"+ Test class: {test_class}\n"
+        tests_num_cycles = perf_nums[test_class]
+        if 0 != len(tests_num_cycles):
+            for idx, test_num_cycles in enumerate(sorted(tests_num_cycles.items(), key = lambda x: x[1][sort_by_idx])):
+                test = test_num_cycles[0]
+                num_cycles = test_num_cycles[1]
+                msg += f"  {idx:>{max_idx_len}}. {test:<{max_test_len}}: {num_cycles[0]:>{max_model_num_cycles_len}}, {num_cycles[1]:>{max_rtl_num_cycles_len}}, {num_cycles[2]:.2f}\n"
+
+    return msg.rstrip()
+
 def get_num_cycles_model_by_rtl(tests, rtl_args, model_args):
     statuses = get_tests_statuses(tests, rtl_args, model_args)
     return get_num_cycles_model_by_rtl_from_statuses(statuses)
 
 def num_cycles_model_by_rtl_to_str(tests_num_cycles, sort_by = "model_by_rtl"):
-    def get_sort_by_index(sort_by):
-        sort_by_options = ["model", "rtl", "model_by_rtl"]
-        for idx, option in enumerate(sort_by_options):
-            if option == sort_by:
-                return idx
-
-        raise Exception(f"- error: can not determine sort order from given option {sort_by}")
-
-    sort_by_idx = get_sort_by_index(sort_by)
+    sort_by_idx = get_sort_by_index_for_num_cycles_model_by_rtl(sort_by)
     max_test_len = max([len(test) for test in tests_num_cycles.keys()])
     max_idx_len = math.ceil(math.log(len(tests_num_cycles)))
-    max_model_num_cycles_len = math.ceil(math.log10(max(num_cycles[get_sort_by_index("model")] for num_cycles in tests_num_cycles.values())))
-    max_rtl_num_cycles_len = math.ceil(math.log10(max(num_cycles[get_sort_by_index("rtl")] for num_cycles in tests_num_cycles.values())))
+    max_model_num_cycles_len = math.ceil(math.log10(max(num_cycles[get_sort_by_index_for_num_cycles_model_by_rtl("model")] for num_cycles in tests_num_cycles.values())))
+    max_rtl_num_cycles_len = math.ceil(math.log10(max(num_cycles[get_sort_by_index_for_num_cycles_model_by_rtl("rtl")] for num_cycles in tests_num_cycles.values())))
     msg = ""
     for idx, test in enumerate(sorted(tests_num_cycles.items(), key = lambda x: x[1][sort_by_idx])):
         msg += f"{idx:>{max_idx_len}}. {test[0]:<{max_test_len}}: {test[1][0]:>{max_model_num_cycles_len}}, {test[1][1]:>{max_rtl_num_cycles_len}}, {test[1][2]:.2f}\n"
@@ -349,13 +386,6 @@ def get_failure_bins_from_statuses(statuses):
 
     return fails
 
-def get_pass_rate_and_failure_bins_by_class_from_statuses(statuses):
-    classes_tests = get_classes_tests(statuses.keys())
-    pass_rate = get_pass_rate_by_class_from_statuses
-
-def print_pass_rate_by_class(pass_rate, sort_by = "class"):
-    print(pass_rate_by_class_to_str(pass_rate, sort_by))
-
 def overall_status_to_str(statuses):
     PASS = "PASS"
     num_tests = len(statuses)
@@ -371,35 +401,51 @@ def overall_status_to_str(statuses):
 
     return msg
 
-def print_overall_status(statuses):
-    print(overall_status_to_str(statuses))
-
 def get_status_for_class(test_class, statuses):
+    PASS = "PASS"
+    key_tests = "tests"
+    bins = get_failure_bins_as_str()
+    assert PASS not in bins
+    assert key_tests not in bins
+    bins.append(PASS)
+    bins.append(key_tests)
+    bins = sorted(bins)
+
     num_pass = 0
     num_tests = 0
     num_fail = [0 for _ in get_failure_bins_as_str()]
-    tests = list()
+    test_bins = dict()
+    for b in bins:
+        test_bins[b] = []
+
     for test, status in statuses.items():
         if test_class == status["class"]:
-            tests.append(test)
+            test_bins[key_tests].append(test)
             num_tests += 1
             if "failure_bin" not in status.keys():
                 num_pass += 1
+                test_bins[PASS].append(test)
             else:
                 num_fail[get_failure_bin_index(status["failure_bin"])] += 1
+                assert status["failure_bin"] in test_bins.keys()
+                test_bins[status["failure_bin"]].append(test)
 
-    class_status = dict()
-    class_status["tests"] = tests
-    assert num_tests == len(class_status["tests"])
-    class_status["num_pass"] = num_pass
-    class_status["num_fail"] = num_fail
-    assert (num_pass + sum(num_fail)) == num_tests
+    for key, value in test_bins.items():
+        test_bins[key] = sorted(value)
 
-    return class_status
+    assert num_tests == len(test_bins[key_tests])
+    assert num_pass == len(test_bins[PASS])
+    for bin in get_failure_bins_as_str():
+        bin_idx = get_failure_bin_index(bin)
+        assert len(test_bins[bin]) == num_fail[bin_idx]
+
+    assert len(test_bins[key_tests]) == sum(len(value) for key, value in test_bins.items() if key != key_tests)
+
+    return test_bins
 
 def get_status_by_class(statuses):
     classes_statuses = dict()
-    for c in get_test_classes():
+    for c in sorted(get_test_classes()):
         classes_statuses[c] = get_status_for_class(c, statuses)
 
     return classes_statuses
@@ -408,109 +454,142 @@ def status_by_class_to_str(statuses): # classes_statuses
     overall = "Overall"
     assert overall not in statuses.keys()
 
+    key_tests = "tests"
+    PASS = "PASS"
+
     failure_bins_as_str = get_failure_bins_as_str()
     status_dict = dict()
-    status_dict["tests"] = []
-    status_dict["num_pass"] = 0
-    status_dict["num_fail"] = [0 for _ in failure_bins_as_str]
     for status in statuses.values():
-        status_dict["tests"].extend(status["tests"])
-        status_dict["num_pass"] += status["num_pass"]
-        for idx in range(len(status_dict["num_fail"])):
-            status_dict["num_fail"][idx] += status["num_fail"][idx]
+        for key in status.keys():
+            status_dict[key] = []
+        break
 
-    assert len(status_dict["tests"]) == sum(len(status["tests"]) for status in statuses.values())
-    assert status_dict["num_pass"] == sum(status["num_pass"] for status in statuses.values())
-    for idx in range(len(status_dict["num_fail"])):
-        assert status_dict["num_fail"][idx] == sum(status["num_fail"][idx] for status in statuses.values())
-    assert status_dict["num_pass"] + sum(status_dict["num_fail"]) == len(status_dict["tests"])
+    for status in statuses.values():
+        for key, value in status.items():
+            status_dict[key].extend(value)
 
+    for key, value in status_dict.items():
+        status_dict[key] = sorted(value)
+
+    assert key_tests in status_dict.keys()
+    assert len(status_dict[key_tests]) == sum(len(status_dict[key]) for key in status_dict.keys() if key != key_tests)
+    assert (2 * len(status_dict[key_tests])) == sum(len(status_dict[key]) for key in status_dict.keys()) # same as above
+
+    for key, value in status_dict.items():
+        assert len(value) == sum(len(status[key]) for status in statuses.values())
+
+    statuses = copy.deepcopy(statuses)
     statuses[overall] = status_dict
 
-    max_idx_len       = math.ceil(math.log10(len(statuses)))
-    max_class_len     = max([len(key) for key in statuses.keys()])
-    max_num_tests_len = math.ceil(math.log10(max([len(status["tests"]) for status in statuses.values()])))
-    max_num_pass_len  = math.ceil(math.log10(max([status["num_pass"] for status in statuses.values()])))
-    max_num_fails_len = math.ceil(math.log10(max([sum(status["num_fail"]) for status in statuses.values()])))
-    max_num_fail_len  = [sum([status["num_fail"][idx] for status in statuses.values()]) for idx in range(len(failure_bins_as_str))]
-    max_bin_str_len   = max([len(key) for key in failure_bins_as_str])
+    failure_bins_as_str = sorted(get_failure_bins_as_str())
+    max_idx_len         = math.ceil(math.log10(len(statuses)))
+    max_class_len       = max([len(key) for key in statuses.keys()])
+    max_num_tests_len   = math.ceil(math.log10(max([len(status[key_tests]) for status in statuses.values()])))
+    max_num_pass_len    = math.ceil(math.log10(max([len(status[PASS]) for status in statuses.values()])))
+    max_num_fails_len   = math.ceil(math.log10(max([sum(len(status[key]) for key in failure_bins_as_str) for status in statuses.values()])))
+    max_bin_str_len     = max([len(key) for key in failure_bins_as_str])
 
     # del statuses[overall]
 
     msg = ""
     for idx, test_class in enumerate(statuses.keys()):
         status = statuses[test_class]
-        per_cent_pass = status["num_pass"]/len(status["tests"]) * 100.
-        per_cent_fails = sum(status["num_fail"])/len(status["tests"]) * 100.
-        msg += f"{idx:>{max_idx_len}}. {test_class:<{max_class_len}}: Num tests: {len(status["tests"]):>{max_num_tests_len}}, Num pass: {status["num_pass"]:>{max_num_pass_len}} ({per_cent_pass:6.2f} %), Num fails: {sum(status["num_fail"]):>{max_num_fails_len}} ({per_cent_fails:6.2f} %)\n"
+        num_tests      = len(status[key_tests])
+        num_pass       = len(status[PASS])
+        num_fails      = [len(status[key]) for key in failure_bins_as_str]
+        per_cent_pass  = num_pass/num_tests * 100.
+        per_cent_fails = sum(num_fails)/num_tests * 100.
+        msg += f"{idx:>{max_idx_len}}. {test_class:<{max_class_len}}: Num tests: {num_tests:>{max_num_tests_len}}, Num pass: {num_pass:>{max_num_pass_len}} ({per_cent_pass:6.2f} %), Num fails: {sum(num_fails):>{max_num_fails_len}} ({per_cent_fails:6.2f} %)\n"
         msg += "  - failure bins:\n"
-        for fidx in range(len(status["num_fail"])):
-            msg += f"    - {failure_bins_as_str[fidx]:<{max_bin_str_len}}: {status['num_fail'][fidx]:>{max_num_fails_len}}\n"
+        for bin in failure_bins_as_str:
+            msg += f"    - {bin:<{max_bin_str_len}}: {len(status[bin]):>{max_num_fails_len}}\n"
 
     return msg
 
+def failed_tests_by_test_class_to_str(statuses): # classes_statuses
+    failure_bin_as_str = sorted(get_failure_bins_as_str())
+    max_idx_len = math.ceil(math.log10(max(len(status[bin]) for status in statuses.values() for bin in failure_bin_as_str)))
+    msg = ""
+    for c, status in statuses.items():
+        msg += f"+ Test class: {c}\n"
+        for bin in failure_bin_as_str:
+            if 0 != len(status[bin]):
+                msg += f"  + bin: {bin}\n"
+                for idx, test in enumerate(sorted(status[bin])):
+                    msg += f"    {idx:>{max_idx_len}}. {test}\n"
+
+    return msg.rstrip()
 
 def print_status(tests, rtl_args, model_args, sort_pass_rate_by = "class"):
     statuses = get_tests_statuses(tests, rtl_args, model_args)
+    classes_statuses = get_status_by_class(statuses)
     print(f"+ Overall status: {overall_status_to_str(statuses)}")
     print()
     print("+ Status by test class")
-    print(status_by_class_to_str(get_status_by_class(statuses)))
+    print(status_by_class_to_str(classes_statuses))
     print()
     print("+ Number of cycles: Test, Model, RTL, model/rtl")
     print_num_cycles_model_by_rtl(get_num_cycles_model_by_rtl_from_statuses(statuses))
+    print()
+    print("+ Test class wise number of cycles. Test, model, RTL, model/rtl")
+    print(test_class_wise_num_cycles_model_by_rtl_to_str(get_test_class_wise_num_cycles_model_by_rtl_from_statuses(statuses)))
+    print()
+    print("+ Failed tests by test class")
+    print(failed_tests_by_test_class_to_str(classes_statuses))
+
+def plot_s_curve(tests_num_cycles, file_to_write = ""):
+    sort_by_idx = get_sort_by_index_for_num_cycles_model_by_rtl("model_by_rtl")
+    x = [None for _ in range(len(tests_num_cycles))]
+    y = [None for _ in range(len(tests_num_cycles))]
+    for idx, elem in enumerate(sorted(tests_num_cycles.items(), key = lambda x: x[1][sort_by_idx])):
+        test = elem[0]
+        num_cycles = elem[1]
+        x[idx] = test
+        y[idx] = num_cycles[sort_by_idx]
+
+    assert all(ele is not None for ele in x)
+    assert all(ele is not None for ele in y)
+    assert len(x) == len(y)
+
+    num_tests = len(x)
+    num_tests_len = math.ceil(math.log10(num_tests))
+
+    x = [f"{x[idx]} ({y[idx]:.2f})" for idx in range(len(x))]
+
+    num_10pc = len([ele for ele in y if abs(ele - 1.0) <= 0.1])
+    num_20pc = len([ele for ele in y if abs(ele - 1.0) <= 0.2])
+    num_30pc = len([ele for ele in y if abs(ele - 1.0) <= 0.3])
+
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.plot(x, y, color = "black", linewidth = 1, alpha = 0.5)
+    ax.scatter(x, y, alpha = 0.5)
+    ax.axhline(1, color = 'black', linestyle = "--", linewidth = 0.5, alpha = 0.5, label = f"{sum([1 for ele in y if ele <= 1])} tests with PM/RTL <= 1")
+
+    # Highlight the region 0.9 to 1.1 slightly darker
+    ax.axhspan(0.7, 1.3, color="gray", alpha=0.05, label=f"+/- 30% ({num_30pc}/{num_tests} tests, {((num_30pc/num_tests)*100):.0f}%)")
+
+    # Highlight the region 0.9 to 1.1 slightly darker
+    ax.axhspan(0.8, 1.2, color="gray", alpha=0.1,  label=f"+/- 20% ({num_20pc}/{num_tests} tests, {((num_20pc/num_tests)*100):.0f}%)")
+
+    # Highlight the region 0.9 to 1.1 slightly darker
+    ax.axhspan(0.9, 1.1, color="gray", alpha=0.2,  label=f"+/- 10% ({num_10pc}/{num_tests} tests, {((num_10pc/num_tests)*100):.0f}%)")
+
+    # Labels and title
+    ax.set_xlabel("Tests")
+    ax.set_ylabel("Perf comparison (PM/RTL)")
+    # ax.set_title("col1 vs col5 Plot")
+    ax.tick_params(axis='x', labelrotation=90, labelsize = 6)
+
+    # Show legend
+    ax.legend()
+
+    # Save plot as an SVG file with no extra white space
+    plt.savefig(f"s_curve_{file_to_write}.svg", format="svg", bbox_inches="tight", dpi = 512)
+    plt.savefig(f"s_curve_{file_to_write}.png", format="png", bbox_inches="tight", dpi = 512)
+
+    print("- end of s curve")
 
 
-
-
-    # model_errors = get_model_errors_from_statuses(statuses)
-    # num_cycles = get_num_cycles_model_by_rtl_from_statuses(statuses)
-    # pass_rate = get_pass_rate_by_class_from_statuses(statuses)
-    # print("Model errors")
-    # print_model_errors(model_errors)
-    # print()
-    # print("Number of cycles: Test, Model, RTL, model/rtl")
-    # print_num_cycles_model_by_rtl(num_cycles)
-    # print()
-    # print("Pass rate by class")
-    # print_pass_rate_by_class(pass_rate, sort_pass_rate_by)
 
 def write_status_to_csv(rtl_args, model_args):
-    assert isinstance(rtl_args, dict)
-    assert isinstance(model_args, dict)
-
-    key_model_odir = "model_odir"
-    key_model_root_dir = "model_root_dir"
-    key_model_root_dir_path = "model_root_dir_path"
-    key_rtl_tag = "rtl_tag"
-
-    for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_rtl_")]:
-        assert key in rtl_args.keys(), f"- error: {key} not found in given rtl_args dict"
-
-    for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_model_")]:
-        assert key in model_args.keys(), f"- error: {key} not found in given model_args dict"
-
-    csv_file_name = f"status_{rtl_args[key_rtl_tag]}_{datetime.datetime.now().strftime('%Y-%m-%d')}.csv"
-    csv_file_path = os.path.join(model_args[key_model_root_dir_path], model_args[key_model_root_dir], model_args[key_model_odir])
-    summary_csv_file_name = f"summary_{csv_file_name}"
-    csv_file_incl_path = os.path.join(csv_file_path, csv_file_name)
-    summary_csv_file_incl_path = os.path.join(csv_file_path, summary_csv_file_name)
-
-    print("+ status will be written to:",         csv_file_incl_path)
-    print("+ summary status will be written to:", summary_csv_file_incl_path)
-
-    csv_args = dict()
-    status_args["root_dir"]              = os.path.dirname(os.path.abspath(__file__))
-    status_args["debug_dir"]             = os.path.join(rtl_args["local_test_bench_dir"], rtl_args["debug_dir"])
-    status_args["t3sim_dir"]             = t3sim_args["sim_dir"]
-    status_args["sim_result_yml"]        = rtl_args["sim_result_yml"]
-    status_args["flatten_dict"]          = False # do not change this.
-    status_args["test_dir_suffix"]       = rtl_args["test_dir_suffix"]
-    status_args["rtl_log_file_suffix"]   = rtl_args["rtl_log_file_suffix"]
-    status_args["t3sim_log_file_suffix"] = t3sim_args["t3sim_log_file_suffix"]
-    status_args["assembly_yaml"]         = os.path.join(t3sim_args["sim_dir"], t3sim_args["binutils_dir"], "instruction_sets", t3sim_args["tensix_instructions_kind"], t3sim_args["assembly_yaml"]) # todo: automated instruction sets
-
-    write_status_to_csv(status.get_status(tests, status_args), csv_name)
-    # write_regression(summary_csv_name)
-    # write_failure_types(summary_csv_name)
-    # write_s_curve(summary_csv_name)
+    pass
