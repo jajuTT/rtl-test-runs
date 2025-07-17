@@ -268,27 +268,16 @@ def test_class_wise_num_cycles_model_by_rtl_to_str(perf_nums, sort_by = "model_b
 
     return msg.rstrip()
 
-
-
-
 def get_num_cycles_model_by_rtl(tests, rtl_args, model_args):
     statuses = get_tests_statuses(tests, rtl_args, model_args)
     return get_num_cycles_model_by_rtl_from_statuses(statuses)
 
 def num_cycles_model_by_rtl_to_str(tests_num_cycles, sort_by = "model_by_rtl"):
-    def get_sort_by_index(sort_by):
-        sort_by_options = ["model", "rtl", "model_by_rtl"]
-        for idx, option in enumerate(sort_by_options):
-            if option == sort_by:
-                return idx
-
-        raise Exception(f"- error: can not determine sort order from given option {sort_by}")
-
-    sort_by_idx = get_sort_by_index(sort_by)
+    sort_by_idx = get_sort_by_index_for_num_cycles_model_by_rtl(sort_by)
     max_test_len = max([len(test) for test in tests_num_cycles.keys()])
     max_idx_len = math.ceil(math.log(len(tests_num_cycles)))
-    max_model_num_cycles_len = math.ceil(math.log10(max(num_cycles[get_sort_by_index("model")] for num_cycles in tests_num_cycles.values())))
-    max_rtl_num_cycles_len = math.ceil(math.log10(max(num_cycles[get_sort_by_index("rtl")] for num_cycles in tests_num_cycles.values())))
+    max_model_num_cycles_len = math.ceil(math.log10(max(num_cycles[get_sort_by_index_for_num_cycles_model_by_rtl("model")] for num_cycles in tests_num_cycles.values())))
+    max_rtl_num_cycles_len = math.ceil(math.log10(max(num_cycles[get_sort_by_index_for_num_cycles_model_by_rtl("rtl")] for num_cycles in tests_num_cycles.values())))
     msg = ""
     for idx, test in enumerate(sorted(tests_num_cycles.items(), key = lambda x: x[1][sort_by_idx])):
         msg += f"{idx:>{max_idx_len}}. {test[0]:<{max_test_len}}: {test[1][0]:>{max_model_num_cycles_len}}, {test[1][1]:>{max_rtl_num_cycles_len}}, {test[1][2]:.2f}\n"
@@ -397,13 +386,6 @@ def get_failure_bins_from_statuses(statuses):
 
     return fails
 
-def get_pass_rate_and_failure_bins_by_class_from_statuses(statuses):
-    classes_tests = get_classes_tests(statuses.keys())
-    pass_rate = get_pass_rate_by_class_from_statuses
-
-def print_pass_rate_by_class(pass_rate, sort_by = "class"):
-    print(pass_rate_by_class_to_str(pass_rate, sort_by))
-
 def overall_status_to_str(statuses):
     PASS = "PASS"
     num_tests = len(statuses)
@@ -418,9 +400,6 @@ def overall_status_to_str(statuses):
     msg = f"Number of tests: {num_tests}, Pass rate:  RTL: {((num_pass_rtl / num_tests) * 100.):5.2f} %, Model: {((num_pass_model / num_tests) * 100.):5.2f} % ({num_tests - num_pass_model} failures)"
 
     return msg
-
-def print_overall_status(statuses):
-    print(overall_status_to_str(statuses))
 
 def get_status_for_class(test_class, statuses):
     PASS = "PASS"
@@ -558,43 +537,59 @@ def print_status(tests, rtl_args, model_args, sort_pass_rate_by = "class"):
     print("+ Failed tests by test class")
     print(failed_tests_by_test_class_to_str(classes_statuses))
 
+def plot_s_curve(tests_num_cycles, file_to_write = ""):
+    sort_by_idx = get_sort_by_index_for_num_cycles_model_by_rtl("model_by_rtl")
+    x = [None for _ in range(len(tests_num_cycles))]
+    y = [None for _ in range(len(tests_num_cycles))]
+    for idx, elem in enumerate(sorted(tests_num_cycles.items(), key = lambda x: x[1][sort_by_idx])):
+        test = elem[0]
+        num_cycles = elem[1]
+        x[idx] = test
+        y[idx] = num_cycles[sort_by_idx]
+
+    assert all(ele is not None for ele in x)
+    assert all(ele is not None for ele in y)
+    assert len(x) == len(y)
+
+    num_tests = len(x)
+    num_tests_len = math.ceil(math.log10(num_tests))
+
+    x = [f"{x[idx]} ({y[idx]:.2f})" for idx in range(len(x))]
+
+    num_10pc = len([ele for ele in y if abs(ele - 1.0) <= 0.1])
+    num_20pc = len([ele for ele in y if abs(ele - 1.0) <= 0.2])
+    num_30pc = len([ele for ele in y if abs(ele - 1.0) <= 0.3])
+
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.plot(x, y, color = "black", linewidth = 1, alpha = 0.5)
+    ax.scatter(x, y, alpha = 0.5)
+    ax.axhline(1, color = 'black', linestyle = "--", linewidth = 0.5, alpha = 0.5, label = f"{sum([1 for ele in y if ele <= 1])} tests with PM/RTL <= 1")
+
+    # Highlight the region 0.9 to 1.1 slightly darker
+    ax.axhspan(0.7, 1.3, color="gray", alpha=0.05, label=f"+/- 30% ({num_30pc}/{num_tests} tests, {((num_30pc/num_tests)*100):.0f}%)")
+
+    # Highlight the region 0.9 to 1.1 slightly darker
+    ax.axhspan(0.8, 1.2, color="gray", alpha=0.1,  label=f"+/- 20% ({num_20pc}/{num_tests} tests, {((num_20pc/num_tests)*100):.0f}%)")
+
+    # Highlight the region 0.9 to 1.1 slightly darker
+    ax.axhspan(0.9, 1.1, color="gray", alpha=0.2,  label=f"+/- 10% ({num_10pc}/{num_tests} tests, {((num_10pc/num_tests)*100):.0f}%)")
+
+    # Labels and title
+    ax.set_xlabel("Tests")
+    ax.set_ylabel("Perf comparison (PM/RTL)")
+    # ax.set_title("col1 vs col5 Plot")
+    ax.tick_params(axis='x', labelrotation=90, labelsize = 6)
+
+    # Show legend
+    ax.legend()
+
+    # Save plot as an SVG file with no extra white space
+    plt.savefig(f"s_curve_{file_to_write}.svg", format="svg", bbox_inches="tight", dpi = 512)
+    plt.savefig(f"s_curve_{file_to_write}.png", format="png", bbox_inches="tight", dpi = 512)
+
+    print("- end of s curve")
+
+
+
 def write_status_to_csv(rtl_args, model_args):
     pass
-    # assert isinstance(rtl_args, dict)
-    # assert isinstance(model_args, dict)
-
-    # key_model_odir = "model_odir"
-    # key_model_root_dir = "model_root_dir"
-    # key_model_root_dir_path = "model_root_dir_path"
-    # key_rtl_tag = "rtl_tag"
-
-    # for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_rtl_")]:
-    #     assert key in rtl_args.keys(), f"- error: {key} not found in given rtl_args dict"
-
-    # for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_model_")]:
-    #     assert key in model_args.keys(), f"- error: {key} not found in given model_args dict"
-
-    # csv_file_name = f"status_{rtl_args[key_rtl_tag]}_{datetime.datetime.now().strftime('%Y-%m-%d')}.csv"
-    # csv_file_path = os.path.join(model_args[key_model_root_dir_path], model_args[key_model_root_dir], model_args[key_model_odir])
-    # summary_csv_file_name = f"summary_{csv_file_name}"
-    # csv_file_incl_path = os.path.join(csv_file_path, csv_file_name)
-    # summary_csv_file_incl_path = os.path.join(csv_file_path, summary_csv_file_name)
-
-    # print("+ status will be written to:",         csv_file_incl_path)
-    # print("+ summary status will be written to:", summary_csv_file_incl_path)
-
-    # csv_args = dict()
-    # status_args["root_dir"]              = os.path.dirname(os.path.abspath(__file__))
-    # status_args["debug_dir"]             = os.path.join(rtl_args["local_test_bench_dir"], rtl_args["debug_dir"])
-    # status_args["t3sim_dir"]             = t3sim_args["sim_dir"]
-    # status_args["sim_result_yml"]        = rtl_args["sim_result_yml"]
-    # status_args["flatten_dict"]          = False # do not change this.
-    # status_args["test_dir_suffix"]       = rtl_args["test_dir_suffix"]
-    # status_args["rtl_log_file_suffix"]   = rtl_args["rtl_log_file_suffix"]
-    # status_args["t3sim_log_file_suffix"] = t3sim_args["t3sim_log_file_suffix"]
-    # status_args["assembly_yaml"]         = os.path.join(t3sim_args["sim_dir"], t3sim_args["binutils_dir"], "instruction_sets", t3sim_args["tensix_instructions_kind"], t3sim_args["assembly_yaml"]) # todo: automated instruction sets
-
-    # write_status_to_csv(status.get_status(tests, status_args), csv_name)
-    # # write_regression(summary_csv_name)
-    # # write_failure_types(summary_csv_name)
-    # # write_s_curve(summary_csv_name)
