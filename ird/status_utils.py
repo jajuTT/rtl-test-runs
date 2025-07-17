@@ -591,6 +591,7 @@ def plot_s_curve(tests_num_cycles, file_to_write = ""):
 
 def plot_test_class_wise_s_curve(tests, rtl_args, model_args, file_to_write):
     sort_by = "model_by_rtl"
+    num_markers_per_line = 5
     statuses = get_tests_statuses(tests, rtl_args, model_args)
     perf_nums = get_test_class_wise_num_cycles_model_by_rtl_from_statuses(statuses)
     sort_by_idx = get_sort_by_index_for_num_cycles_model_by_rtl(sort_by)
@@ -598,7 +599,6 @@ def plot_test_class_wise_s_curve(tests, rtl_args, model_args, file_to_write):
     x_labels = dict()
     idx_x = 1
     maxy = -1
-    miny = 0
     for test_class in sorted(perf_nums.keys()):
         tests_num_cycles = perf_nums[test_class]
         if 0 != len(tests_num_cycles):
@@ -607,11 +607,17 @@ def plot_test_class_wise_s_curve(tests, rtl_args, model_args, file_to_write):
                 maxy = max(maxy, test_num_cycles[1][sort_by_idx])
                 x_dict[test] = idx_x
                 idx_x += 1
+    miny = maxy
+    for test_class in perf_nums.keys():
+        tests_num_cycles = perf_nums[test_class]
+        for test_num_cycles in tests_num_cycles.values():
+            miny = min(miny, test_num_cycles[sort_by_idx])
 
     # Get colors from the default color cycle
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    assert len(colors) >= len(perf_nums)
 
-    fig, ax = plt.subplots(figsize=(8, 4))
+    fig, ax = plt.subplots(figsize=(12, 4))
 
     for test_class_idx, test_class in enumerate(sorted(perf_nums.keys())):
         tests_num_cycles = perf_nums[test_class]
@@ -626,9 +632,20 @@ def plot_test_class_wise_s_curve(tests, rtl_args, model_args, file_to_write):
             x_labels[test] = f"{test} ({y[idx]:.2f})"
         ax.plot(x, y, color = "black", linewidth = 1, alpha = 0.5)
         # ax.scatter(x, y, alpha = 0.5)
+        mark_every = max(1, int(round(len(x) / num_markers_per_line)))
+        ax.plot(x, y,
+            color     = [0,0,0],
+            marker    = 'o',
+            linestyle = '-',
+            linewidth = 1.0,
+            alpha     = 1,
+            markerfacecolor = colors[test_class_idx],
+            # markeredgecolor = colors[test_class_idx],
+            markevery = mark_every)
 
         ax.axvspan(min(x) - 0.5, max(x) + 0.5, color = colors[test_class_idx], alpha=0.05)
-        y_for_text = maxy - (maxy - miny) * 0.07 if len(x) > 4 else maxy
+        y_for_text = maxy - (maxy - miny) * 0.07 if len(x) > 3 else maxy
+        print(f"- class: {test_class}. len(x) = {len(x)}, (len(x) > 5) : {len(x) > 5}. max_y = {maxy}, y_for_text = {y_for_text}")
         ax.text(min(x), y_for_text, test_class, color = colors[test_class_idx])
 
     # Labels and title
