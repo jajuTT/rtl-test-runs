@@ -520,23 +520,6 @@ def failed_tests_by_test_class_to_str(statuses): # classes_statuses
 
     return msg.rstrip()
 
-def print_status(tests, rtl_args, model_args, sort_pass_rate_by = "class"):
-    statuses = get_tests_statuses(tests, rtl_args, model_args)
-    classes_statuses = get_status_by_class(statuses)
-    print(f"+ Overall status: {overall_status_to_str(statuses)}")
-    print()
-    print("+ Status by test class")
-    print(status_by_class_to_str(classes_statuses))
-    print()
-    print("+ Number of cycles: Test, Model, RTL, model/rtl")
-    print_num_cycles_model_by_rtl(get_num_cycles_model_by_rtl_from_statuses(statuses))
-    print()
-    print("+ Test class wise number of cycles. Test, model, RTL, model/rtl")
-    print(test_class_wise_num_cycles_model_by_rtl_to_str(get_test_class_wise_num_cycles_model_by_rtl_from_statuses(statuses)))
-    print()
-    print("+ Failed tests by test class")
-    print(failed_tests_by_test_class_to_str(classes_statuses))
-
 def plot_s_curve(tests_num_cycles, file_to_write = ""):
     sort_by_idx = get_sort_by_index_for_num_cycles_model_by_rtl("model_by_rtl")
     x = [None for _ in range(len(tests_num_cycles))]
@@ -667,7 +650,26 @@ def plot_test_class_wise_s_curve(tests, rtl_args, model_args, file_to_write):
     plt.savefig(f"test_class_wise_s_curve_{file_to_write}.svg", format="svg", bbox_inches="tight", dpi = 512)
     plt.savefig(f"test_class_wise_s_curve_{file_to_write}.png", format="png", bbox_inches="tight", dpi = 512)
 
+def print_status(tests, rtl_args, model_args):
+    statuses = get_tests_statuses(tests, rtl_args, model_args)
+    classes_statuses = get_status_by_class(statuses)
+    perf_nums = get_num_cycles_model_by_rtl_from_statuses(statuses)
+    print(f"+ Overall status: {overall_status_to_str(statuses)}")
+    print()
+    print("+ Status by test class")
+    print(status_by_class_to_str(classes_statuses))
+    print()
+    print("+ Number of cycles: Test, Model, RTL, model/rtl")
+    print_num_cycles_model_by_rtl(perf_nums)
+    print()
+    print("+ Test class wise number of cycles. Test, model, RTL, model/rtl")
+    print(test_class_wise_num_cycles_model_by_rtl_to_str(get_test_class_wise_num_cycles_model_by_rtl_from_statuses(statuses)))
+    print()
+    print("+ Failed tests by test class")
+    print(failed_tests_by_test_class_to_str(classes_statuses))
 
+    plot_s_curve(perf_nums, rtl_args['rtl_tag'])
+    plot_test_class_wise_s_curve(tests, rtl_args, model_args, rtl_args['rtl_tag'])
 
 
 

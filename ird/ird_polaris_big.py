@@ -395,7 +395,5 @@ if "__main__" == __name__:
     # rtl_utils.rtl_tests.execute_tests(tests, rtl_args)
     # polaris_big_utils.polaris_big_tests.execute_tests(tests, rtl_args, polaris_big_args)
     status_utils.print_status(tests, rtl_args, polaris_big_args)
-    status_utils.plot_s_curve(status_utils.get_num_cycles_model_by_rtl(tests, rtl_args, polaris_big_args), rtl_args['rtl_tag'])
-    status_utils.plot_test_class_wise_s_curve(tests, rtl_args, polaris_big_args, rtl_args['rtl_tag'])
 
     ird_release(selID)
