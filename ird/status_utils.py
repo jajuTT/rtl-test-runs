@@ -561,9 +561,18 @@ def plot_s_curve(tests_num_cycles, file_to_write = ""):
     num_30pc = len([ele for ele in y if abs(ele - 1.0) <= 0.3])
 
     fig, ax = plt.subplots(figsize=(8, 4))
-    ax.plot(x, y, color = "black", linewidth = 1, alpha = 0.5)
-    ax.scatter(x, y, alpha = 0.5)
+    # ax.plot(x, y, color = "black", linewidth = 1, alpha = 0.5)
+    # ax.scatter(x, y, alpha = 0.5)
     ax.axhline(1, color = 'black', linestyle = "--", linewidth = 0.5, alpha = 0.5, label = f"{sum([1 for ele in y if ele <= 1])} tests with PM/RTL <= 1")
+    ax.plot(x, y,
+            color     = [0,0,0],
+            marker    = 'o',
+            linestyle = '-',
+            linewidth = 1.0,
+            alpha     = 1,
+            markerfacecolor = [1,1,1],
+            # markeredgecolor = colors[test_class_idx],
+            markevery = 1)
 
     # Highlight the region 0.9 to 1.1 slightly darker
     ax.axhspan(0.7, 1.3, color="gray", alpha=0.05, label=f"+/- 30% ({num_30pc}/{num_tests} tests, {((num_30pc/num_tests)*100):.0f}%)")
@@ -645,7 +654,6 @@ def plot_test_class_wise_s_curve(tests, rtl_args, model_args, file_to_write):
 
         ax.axvspan(min(x) - 0.5, max(x) + 0.5, color = colors[test_class_idx], alpha=0.05)
         y_for_text = maxy - (maxy - miny) * 0.07 if len(x) > 3 else maxy
-        print(f"- class: {test_class}. len(x) = {len(x)}, (len(x) > 5) : {len(x) > 5}. max_y = {maxy}, y_for_text = {y_for_text}")
         ax.text(min(x), y_for_text, test_class, color = colors[test_class_idx])
 
     # Labels and title
