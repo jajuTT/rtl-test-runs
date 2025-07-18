@@ -329,14 +329,14 @@ def get_status(test_names, status_args):
     def get_t3sim_test_status(test, path, status):
         import os
         log_file = os.path.join(path, f"{test}.t3sim_test.log")
-
+        print(log_file)
         status.status = None
         with open(log_file, "r") as file:
             for line in file:
                 line = line.strip()
                 if line.startswith("Total Cycles"):
                     status.status = "PASS"
-                    status.num_cycles = int(line.split("=")[1].strip())  # Extract and store value
+                    status.num_cycles = float(line.split("=")[1].strip())  # Extract and store value
                     break
 
             if not status.status:
@@ -448,7 +448,7 @@ def write_failure_types(file_to_read):
         .fill_null(0)
     )
 
-    if 1 != result.shape[1]: #if there's only 1 column, this means there's no failures. need to handle case where there are no success, here or somewhere. 
+    if 1 != result.shape[1]: #if there's only 1 column, this means there's no failures. need to handle case where there are no success, here or somewhere.
         result = result.sort(result.columns[0], maintain_order=True)
 
         # Add totals column
@@ -483,6 +483,7 @@ def write_s_curve(file_to_read):
     data = polars.read_csv(file_to_read)
     num_tests = data.shape[0]
     print("- num tests: ", num_tests)
+
     result = data.filter(polars.col("Perf comparison").is_not_null())
     result = result.select(["Test", "Perf comparison", polars.selectors.starts_with('Number of instructions of kind')]).sort("Perf comparison")
 
@@ -606,6 +607,7 @@ def write_status_to_csv(status, file_to_write):
 
     def get_failure_class(test_name, msg):
         bins = {'attribs', 'Too many resources', 'Timeout', 'register', 'KeyboardInterrupt', 'has no attribute', 'Replay', 'Semaphore', "object cannot be interpreted as an integer", "Zero Dst expected", "TypeError: unsupported operand type(s) for &"}
+        print("get_failure_class: ", test_name, msg, type(msg))
         for b in bins:
             if b in msg:
                 return b
@@ -723,12 +725,12 @@ def write_status_to_csv(status, file_to_write):
             row.append(test_status.rtl.num_cycles)
             row.append(test_status.pm.status)
             row.append(test_status.pm.num_cycles)
-            if isinstance(test_status.pm.num_cycles, int):
+            if isinstance(test_status.pm.num_cycles, (int, float)):
                 row.append(test_status.pm.num_cycles / test_status.rtl.num_cycles)
             else:
                 row.append(None)
 
-            row.append(None if isinstance(test_status.pm.num_cycles, int) else get_failure_class(test_status.name, test_status.pm.num_cycles))
+            row.append(None if isinstance(test_status.pm.num_cycles, (int, float)) else get_failure_class(test_status.name, test_status.pm.num_cycles))
 
             num_instructions = test_status.get_num_instructions()
             for kind in instruction_kinds:

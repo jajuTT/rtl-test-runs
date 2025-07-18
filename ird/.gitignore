@@ -1,0 +1,5 @@
+__pycache__
+from-ws-tensix
+t3sim
+*.rtl_test.log
+*.t3sim_test.log

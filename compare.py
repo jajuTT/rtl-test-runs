@@ -267,6 +267,58 @@ def get_tensix_instructions_file_from_rtl_test_bench(args):
         print(f"+ Executing command: {cmd}")
         conn.local(cmd)
 
+def get_instructions_throughput(rtl_args, t3sim_args):
+    def get_file_rtl_drop_date_as_tag(rtl_args):
+        rtl_path = rtl_args["test_bench_dir_path"] if "test_bench_dir_path" in rtl_args.keys() else None
+
+        if not rtl_path:
+            raise Exception("- error: could not find rtl path.")
+
+        return "".join(rtl_path.split(os.path.sep)[-2:])
+
+    def get_default_cfg_file_name_incl_path(tag, t3sim_args):
+        t3sim_dir = t3sim_args["git"].split("/")[-1][:-4]
+        return os.path.join(t3sim_dir, t3sim_args["cfg_dir"], f"{t3sim_args["tensix_instructions_kind"]}_t3Cfg_{tag}.json")
+
+    def get_instructions_throughput(file_name):
+        mnemonics_tpt = dict()
+        with open(file_name, 'r') as file:
+            data = json.load(file)
+
+            engines_str = "engines"
+            engineInstructions_str = "engineInstructions"
+            tpt_str = "tpt"
+            name_str = "name"
+            tpt_keys_str = sorted(["int32", "bf16", "fp16", "fp32", "fp64"])
+
+            if not engines_str in data.keys():
+                raise Exception(f"- could not find key {engines_str} in file {file_name}")
+
+            engines = data[engines_str]
+            for engine in engines:
+                if engineInstructions_str not in engine.keys():
+                    raise Exception(f"- error: could not find key {engineInstructions_str} in engine: {engine}")
+
+                instructions = engine[engineInstructions_str]
+                for instruction in instructions:
+                    if tpt_str not in instruction.keys():
+                        raise Exception(f"- error: could not find key {tpt_str} in instruction {instruction} in engine {engine}")
+
+                    if name_str not in instruction.keys():
+                        raise Exception(f"- error: could not find key {name_str} in instruction {instruction} in engine {engine}")
+
+                    tpt = instruction[tpt_str]
+                    if sorted(tpt.keys()) != tpt_keys_str:
+                        raise Exception(f"- error: tpt key mismatch. expected: {tpt_keys_str}, received: {sorted(tpt.keys())}")
+
+                    mnemonics_tpt[instruction[name_str]] = tpt
+
+        return mnemonics_tpt
+
+    file_name_incl_path = get_default_cfg_file_name_incl_path(get_file_rtl_drop_date_as_tag(rtl_args), t3sim_args)
+    print(f"- mnemonics and throughput will be obtained from file: {file_name_incl_path}")
+    return get_instructions_throughput(file_name_incl_path)
+
 def execute_rtl_test(test, hostname, username, remote_dir_path, remote_dir, debug_dir, test_dir_suffix, log_file_suffix, warn_flag):
         import os
 
@@ -452,30 +504,28 @@ def execute_t3sim_test(test, t3sim_args):
 
         num_neos = get_num_neos(test_dir)
 
-        if 1 != num_neos:
-            raise Exception(f"- expected only 1 neo core to be present, found: {num_neos}")
-
-        os_walk = os.walk(test_dir)
-
         for neo_id in range(num_neos):
+            tc_key = f"tc{neo_id}"
+            input_cfg[tc_key] = dict()
             neo_dir = f"neo_{neo_id}"
-            for pwd, _, _ in os_walk:
+            for pwd, _, _ in os.walk(test_dir):
                 if pwd.endswith(neo_dir):
                     num_threads = get_num_threads(pwd)
                     if num_threads in {0, None}:
                         raise Exception(f"- error: expected at least one thread, received {num_threads}. Path: {pwd}")
 
-                    input_cfg.update({"numThreads" : num_threads})
+                    input_cfg[tc_key].update({"startFunction" : start_function})
+                    input_cfg[tc_key].update({"numThreads" : num_threads})
 
                     neo_os_walk = os.walk(pwd)
                     for pwd1, _, files in neo_os_walk:
                         for file in files:
                             if file.endswith(".elf"):
-                                thread_id = number = int(file.split("_")[-1].split(".")[0])
+                                thread_id = int(file.split("_")[-1].split(".")[0])
                                 if thread_id > num_threads:
                                     raise Exception(f"- error: thread id is greater than number of threads. thread_id: {thread_id}, number of threads: {num_threads}")
-                                input_cfg.update({f"th{thread_id}Path" : pwd1})
-                                input_cfg.update({f"th{thread_id}Elf" : file})
+                                input_cfg[tc_key].update({f"th{thread_id}Path" : pwd1})
+                                input_cfg[tc_key].update({f"th{thread_id}Elf" : file})
 
         if "dvalid" in test_name:
             msg = f"{test_name} contains dvalid.\n"
@@ -486,21 +536,21 @@ def execute_t3sim_test(test, t3sim_args):
 
             print(msg)
 
-            if 3 != input_cfg["numThreads"]:
-                raise Exception(f"- error: expected numThreads to be 3, received {input_cfg['numThreads']}")
+            for neo_id in range(num_neos):
+                tc_key = f"tc{neo_id}"
+                if 3 != input_cfg[tc_key]["numThreads"]:
+                    raise Exception(f"- error: expected numThreads to be 3, received {input_cfg[tc_key]["numThreads"]}. Core: {tc_key}")
 
-            input_cfg["numThreads"] = 4 # change it to 4.
+                input_cfg[tc_key]["numThreads"] = 4 # change it to 4.
 
-            # add thread 3
-            thread_id = 3
-            input_cfg[f"th3Path"] = input_cfg[f"th2Path"]
-            input_cfg[f"th3Elf"]  = input_cfg[f"th2Elf"]
+                # add thread 3
+                thread_id = 3
+                input_cfg[tc_key][f"th3Path"] = input_cfg[tc_key][f"th2Path"]
+                input_cfg[tc_key][f"th3Elf"]  = input_cfg[tc_key][f"th2Elf"]
 
-            # make thread 2 empty
-            input_cfg[f"th2Path"] = ""
-            input_cfg[f"th2Elf"]  = ""
-
-        input_cfg.update({"startFunction" : start_function})
+                # make thread 2 empty
+                input_cfg[tc_key][f"th2Path"] = ""
+                input_cfg[tc_key][f"th2Elf"]  = ""
 
         # t3sim.print_json(input_cfg_dict, f"t3sim_inputcfg_{test_name}.json")
         # print("**************** file to write: ", file_name)
@@ -543,7 +593,7 @@ def execute_t3sim_test(test, t3sim_args):
 
             cfg.update({"engines" : cfg_engines_value})
 
-        def update_unpacker_engines (cfg):
+        def update_unpacker_engines(cfg):
             import re
             def get_engine_idx(engine_name, cfg):
                 for idx, engine in enumerate(cfg["engines"]):
@@ -587,7 +637,7 @@ def execute_t3sim_test(test, t3sim_args):
 
             del cfg["engines"][unpack_idx]
 
-        def update_packer_engines (cfg):
+        def update_packer_engines(cfg):
             import re
             def get_engine_idx(engine_name, cfg):
                 for idx, engine in enumerate(cfg["engines"]):
@@ -708,6 +758,607 @@ def execute_t3sim_test(test, t3sim_args):
 
         return cfg_dict
 
+    def get_cfg0(test_name, t3sim_args):
+        import os
+
+        def get_tensix_instruction_kind(test_dir):
+            if not os.path.exists(test_dir):
+                raise Exception(f"- error: {test_dir} does not exist. AAAA")
+
+            os_walk = os.walk(test_dir)
+            ttx_kinds = set()
+            for pwd, _, files in os_walk:
+                for file in files:
+                    if file.endswith(".elf"):
+                        for kind in read_elf.get_instruction_kinds(os.path.join(pwd, file)):
+                            if kind.is_tensix():
+                                ttx_kinds.add(kind)
+
+            if 1 != len(ttx_kinds):
+                raise Exception(f"- error: expected one tensix instruction kind, received {len(ttx_kinds)}, kinds: {ttx_kinds}")
+
+            return list(ttx_kinds)[0]
+
+        def update_engines(engines, mnemonics_tpt, delay, cfg):
+            cfg_engines_value = []
+            for engine, instructions in engines.items():
+                ele = dict()
+                instructions_incl_tpt = list()
+                for instruction in instructions:
+                    if instruction not in mnemonics_tpt.keys():
+                        raise Exception(f"- error: could not find throughput numbers for instruction {instruction}")
+
+                    instruction_incl_tpt = dict()
+                    instruction_incl_tpt["name"] = instruction
+                    instruction_incl_tpt["tpt"] = mnemomics_throughputs[instruction]
+                    instructions_incl_tpt.append(instruction_incl_tpt)
+
+                ele.update({"engineName"         : engine})
+                ele.update({"engineInstructions" : instructions_incl_tpt})
+                ele.update({"delay"              : delay})
+
+                cfg_engines_value.append(ele)
+
+            cfg.update({"engines" : cfg_engines_value})
+
+        def update_unpacker_engines(cfg):
+            import re
+            def get_engine_idx(engine_name, cfg):
+                for idx, engine in enumerate(cfg["engines"]):
+                    if engine["engineName"] == engine_name:
+                        return idx
+
+                return len(cfg["engines"])
+
+            def get_unpacker_engine_ids (cfg):
+                ids = set()
+                for engine in cfg["engines"]:
+                    if "UNPACK" == engine["engineName"]:
+                        for instruction in engine["engineInstructions"]:
+                            match = re.search(r'\d+', instruction["name"])  # Find first occurrence of a number
+                            if match:
+                                ids.add(int(match.group()))
+
+                return ids if len(ids) else None
+
+            unpack_idx = get_engine_idx("UNPACK", cfg)
+            ids = get_unpacker_engine_ids(cfg)
+
+            for id in ids:
+                engine_name = f"UNPACKER{id}"
+                engine_instructions = []
+                for instruction in cfg["engines"][unpack_idx]["engineInstructions"]:
+                    match = re.search(r'\d+', instruction["name"])  # Find first occurrence of a number
+                    if match:
+                        if int(match.group()) == id:
+                            engine_instructions.append(instruction)
+                    else:
+                        engine_instructions.append(instruction)
+
+                new_engine = dict()
+                new_engine["engineName"] = engine_name
+                new_engine["engineInstructions"] = engine_instructions
+                new_engine["engineGrp"] = engine_name[:-1]
+                new_engine["delay"] = delay
+
+                cfg["engines"].append(new_engine)
+
+            del cfg["engines"][unpack_idx]
+
+        def update_packer_engines(cfg):
+            import re
+            def get_engine_idx(engine_name, cfg):
+                for idx, engine in enumerate(cfg["engines"]):
+                    if engine["engineName"] == engine_name:
+                        return idx
+
+                return len(cfg["engines"])
+
+            def get_packer_engine_ids (cfg):
+                ids = set()
+                for engine in cfg["engines"]:
+                    if "PACK" == engine["engineName"]:
+                        for instruction in engine["engineInstructions"]:
+                            match = re.search(r'\d+', instruction["name"])  # Find first occurrence of a number
+                            if match:
+                                ids.add(int(match.group()))
+
+                return ids if len(ids) else None
+
+            pack_idx = get_engine_idx("PACK", cfg)
+            ids = get_packer_engine_ids(cfg)
+
+            for id in ids:
+                engine_name = f"PACKER{id}"
+                engine_instructions = []
+                for instruction in cfg["engines"][pack_idx]["engineInstructions"]:
+                    match = re.search(r'\d+', instruction["name"])  # Find first occurrence of a number
+                    if match:
+                        if int(match.group()) == id:
+                            engine_instructions.append(instruction)
+                    else:
+                        engine_instructions.append(instruction)
+
+                new_engine = dict()
+                new_engine["engineName"] = engine_name
+                new_engine["engineInstructions"] = engine_instructions
+                new_engine["engineGrp"] = engine_name[:-1]
+                new_engine["delay"] = delay
+
+                cfg["engines"].append(new_engine)
+
+            del cfg["engines"][pack_idx]
+
+        def update_mop_cfg_start(base_addr_str, max_num_threads, cfg):
+            # value = dict()
+            # for id in range(max_num_threads):
+            #     value.update({str(id) : base_addr_str})
+
+            # cfg.update({"MOP_CFG_START" : value})
+
+            cfg.update({"MOP_CFG_START" : base_addr_str})
+
+        def update_cfg_start(base_addr_str, cfg):
+            cfg.update({"CFG_START" : base_addr_str})
+
+        def add_engineGrp_to_engines(cfg):
+            for engine in cfg["engines"]:
+                engine_grp = None
+                if engine["engineName"].startswith("UNPACKER"):
+                    engine_grp = "UNPACK"
+                elif engine["engineName"].startswith("PACKER"):
+                    engine_grp = "PACK"
+                elif ("INSTRISSUE" == engine["engineName"]) or ("INSTISSUE" == engine["engineName"]):
+                    engine_grp = "MATH"
+                else:
+                    engine_grp = engine["engineName"]
+
+                engine["engineGrp"] = engine_grp
+
+        def add_globalPointer(instruction_kind, cfg):
+            globalPointer_str = "globalPointer"
+            if decoded_instruction.instruction_kind.ttwh == instruction_kind:
+                cfg[globalPointer_str] = "0xffb007f0"
+            else:
+                cfg[globalPointer_str] = "0xffb007f0"
+
+        def update_stack(cfg):
+            value = dict()
+
+            value.update({"0": ["0x8023FF", "0x802000"]})
+            value.update({"1": ["0x801FFF", "0x801C00"]})
+            value.update({"2": ["0x801BFF", "0x801800"]})
+            value.update({"3": ["0x8017FF", "0x801400"]})
+
+            cfg.update({"stack" : value})
+
+        def get_mnemonics_throughputs_from_default_cfg_file(instruction_kind, t3sim_args):
+            def get_default_cfg_file_name_incl_path(instruction_kind, t3sim_args):
+                t3sim_dir = t3sim_args["git"].split("/")[-1][:-4]
+                return os.path.join(t3sim_dir, t3sim_args["cfg_dir"], f"{instruction_kind}_t3Cfg_{t3sim_args['rtl_tag']}.json")
+
+            def get_instructions_throughput(file_name):
+                mnemonics_tpt = dict()
+                with open(file_name, 'r') as file:
+                    data = json.load(file)
+
+                    engines_str = "engines"
+                    engineInstructions_str = "engineInstructions"
+                    tpt_str = "tpt"
+                    name_str = "name"
+                    tpt_keys_str = sorted(["int32", "bf16", "fp16", "fp32", "fp64"])
+
+                    if not engines_str in data.keys():
+                        raise Exception(f"- could not find key {engines_str} in file {file_name}")
+
+                    engines = data[engines_str]
+                    for engine in engines:
+                        if engineInstructions_str not in engine.keys():
+                            raise Exception(f"- error: could not find key {engineInstructions_str} in engine: {engine}")
+
+                        instructions = engine[engineInstructions_str]
+                        for instruction in instructions:
+                            if tpt_str not in instruction.keys():
+                                raise Exception(f"- error: could not find key {tpt_str} in instruction {instruction} in engine {engine}")
+
+                            if name_str not in instruction.keys():
+                                raise Exception(f"- error: could not find key {name_str} in instruction {instruction} in engine {engine}")
+
+                            tpt = instruction[tpt_str]
+                            if sorted(tpt.keys()) != tpt_keys_str:
+                                raise Exception(f"- error: tpt key mismatch. expected: {tpt_keys_str}, received: {sorted(tpt.keys())}")
+
+                            mnemonics_tpt[instruction[name_str]] = tpt
+
+                return mnemonics_tpt
+
+            file_name_incl_path = get_default_cfg_file_name_incl_path(instruction_kind, t3sim_args)
+            print(f"- mnemonics and throughput will be obtained from file: {file_name_incl_path}")
+            return get_instructions_throughput(file_name_incl_path)
+
+        required_keys = [
+            "cfg_base_addr_str",
+            "cfg_dir",
+            "cfg_offset",
+            "debug_dir",
+            "delay",
+            "enable_sync",
+            "git",
+            "max_num_threads_per_neo_core",
+            "mop_base_addr_str",
+            "rtl_tag",
+            "sim_dir"
+            ]
+
+        for key in required_keys:
+            if key not in t3sim_args.keys():
+                raise Exception(f"- error: key {key} not found in list of arguments")
+
+        test_dir          = test_name + "_0"
+        cfg_base_addr_str = t3sim_args["cfg_base_addr_str"]
+        cfg_dir           = os.path.join(t3sim_args["sim_dir"], t3sim_args["cfg_dir"])
+        cfg_offset        = t3sim_args["cfg_offset"]
+        debug_dir         = t3sim_args["debug_dir"]
+        delay             = t3sim_args["delay"]
+        enable_sync       = t3sim_args["enable_sync"]
+        max_num_threads   = t3sim_args["max_num_threads_per_neo_core"]
+        mop_base_addr_str = t3sim_args["mop_base_addr_str"]
+
+        if not debug_dir.endswith(test_dir):
+            test_dir = os.path.join(os.getcwd(), debug_dir, test_dir)
+        else:
+            test_dir = debug_dir
+
+        instruction_kind = get_tensix_instruction_kind(test_dir)
+
+        cfg_dict = dict()
+
+        cfg_dict.update({"enableSync"    : enable_sync})
+        cfg_dict.update({"arch"          : instruction_kind.name})
+        cfg_dict.update({"numTriscCores" : get_num_neos(test_dir)})
+        cfg_dict.update({"orderScheme"   : [ [0,1], [0,1], [0,1,2], [1,2] ]})
+        cfg_dict.update({"risc.cpi"      : 1.0})
+        cfg_dict.update({"latency_l1"    : 10.0})
+        mnemomics_throughputs = get_mnemonics_throughputs_from_default_cfg_file(instruction_kind.name, t3sim_args)
+        update_engines(tensix.get_execution_engines_and_instructions(instruction_kind), mnemomics_throughputs, delay, cfg_dict)
+        update_unpacker_engines(cfg_dict)
+        update_packer_engines(cfg_dict)
+        add_engineGrp_to_engines(cfg_dict)
+        add_globalPointer(instruction_kind, cfg_dict)
+        update_mop_cfg_start(mop_base_addr_str, max_num_threads, cfg_dict)
+        update_cfg_start(cfg_base_addr_str, cfg_dict)
+        cfg_dict.update({"CFG_OFFSET" : cfg_offset})
+        # update_stack(test_dir, cfg_dict)
+        update_stack(cfg_dict)
+
+        # t3sim.print_json(cfg_dict, f"t3sim_cfg_{test}.json")
+        file_name = os.path.join(cfg_dir, f"t3sim_cfg_{test}.json")
+        with open(file_name, "w") as file:
+            json.dump(cfg_dict, file, indent = 2)
+
+        return cfg_dict
+
+    def get_cfg1(test_name, t3sim_args):
+        import os
+
+        def get_tensix_instruction_kind(test_dir):
+            if not os.path.exists(test_dir):
+                raise Exception(f"- error: {test_dir} does not exist. AAAA")
+
+            os_walk = os.walk(test_dir)
+            ttx_kinds = set()
+            for pwd, _, files in os_walk:
+                for file in files:
+                    if file.endswith(".elf"):
+                        for kind in read_elf.get_instruction_kinds(os.path.join(pwd, file)):
+                            if kind.is_tensix():
+                                ttx_kinds.add(kind)
+
+            if 1 != len(ttx_kinds):
+                raise Exception(f"- error: expected one tensix instruction kind, received {len(ttx_kinds)}, kinds: {ttx_kinds}")
+
+            return list(ttx_kinds)[0]
+
+        def update_engines(engines, mnemonics_tpt, delay, cfg):
+            cfg_engines_value = []
+            for engine, instructions in engines.items():
+                ele = dict()
+                instructions_incl_tpt = list()
+                for instruction in instructions:
+                    if instruction not in mnemonics_tpt.keys():
+                        raise Exception(f"- error: could not find throughput numbers for instruction {instruction}")
+
+                    instruction_incl_tpt = dict()
+                    instruction_incl_tpt["name"] = instruction
+                    instruction_incl_tpt["tpt"] = mnemomics_throughputs[instruction]
+                    instructions_incl_tpt.append(instruction_incl_tpt)
+
+                ele.update({"engineName"         : engine})
+                ele.update({"engineInstructions" : instructions_incl_tpt})
+                if "NONE" == engine:
+                    ele.update({"delay"              : 0})
+                else:
+                    ele.update({"delay"              : delay})
+
+                cfg_engines_value.append(ele)
+
+            cfg.update({"engines" : cfg_engines_value})
+
+        def update_unpacker_engines(cfg):
+            import re
+            def get_engine_idx(engine_name, cfg):
+                for idx, engine in enumerate(cfg["engines"]):
+                    if engine["engineName"] == engine_name:
+                        return idx
+
+                return len(cfg["engines"])
+
+            def get_unpacker_engine_ids (cfg):
+                ids = set()
+                for engine in cfg["engines"]:
+                    if "UNPACK" == engine["engineName"]:
+                        for instruction in engine["engineInstructions"]:
+                            match = re.search(r'\d+', instruction["name"])  # Find first occurrence of a number
+                            if match:
+                                ids.add(int(match.group()))
+
+                return ids if len(ids) else None
+
+            unpack_idx = get_engine_idx("UNPACK", cfg)
+            ids = get_unpacker_engine_ids(cfg)
+
+            for id in ids:
+                engine_name = f"UNPACKER{id}"
+                engine_instructions = []
+                for instruction in cfg["engines"][unpack_idx]["engineInstructions"]:
+                    match = re.search(r'\d+', instruction["name"])  # Find first occurrence of a number
+                    if match:
+                        if int(match.group()) == id:
+                            engine_instructions.append(instruction)
+                    else:
+                        engine_instructions.append(instruction)
+
+                new_engine = dict()
+                new_engine["engineName"] = engine_name
+                new_engine["engineInstructions"] = engine_instructions
+                new_engine["engineGrp"] = engine_name[:-1]
+                new_engine["delay"] = delay
+
+                cfg["engines"].append(new_engine)
+
+            del cfg["engines"][unpack_idx]
+
+        def update_packer_engines(cfg):
+            import re
+            def get_engine_idx(engine_name, cfg):
+                for idx, engine in enumerate(cfg["engines"]):
+                    if engine["engineName"] == engine_name:
+                        return idx
+
+                return len(cfg["engines"])
+
+            def get_packer_engine_ids (cfg):
+                ids = set()
+                for engine in cfg["engines"]:
+                    if "PACK" == engine["engineName"]:
+                        for instruction in engine["engineInstructions"]:
+                            match = re.search(r'\d+', instruction["name"])  # Find first occurrence of a number
+                            if match:
+                                ids.add(int(match.group()))
+
+                return ids if len(ids) else None
+
+            pack_idx = get_engine_idx("PACK", cfg)
+            ids = get_packer_engine_ids(cfg)
+
+            for id in ids:
+                engine_name = f"PACKER{id}"
+                engine_instructions = []
+                for instruction in cfg["engines"][pack_idx]["engineInstructions"]:
+                    match = re.search(r'\d+', instruction["name"])  # Find first occurrence of a number
+                    if match:
+                        if int(match.group()) == id:
+                            engine_instructions.append(instruction)
+                    else:
+                        engine_instructions.append(instruction)
+
+                new_engine = dict()
+                new_engine["engineName"] = engine_name
+                new_engine["engineInstructions"] = engine_instructions
+                new_engine["engineGrp"] = engine_name[:-1]
+                new_engine["delay"] = delay
+
+                cfg["engines"].append(new_engine)
+
+            del cfg["engines"][pack_idx]
+
+        def update_mop_cfg_start(base_addr_str, max_num_threads, cfg):
+            # value = dict()
+            # for id in range(max_num_threads):
+            #     value.update({str(id) : base_addr_str})
+
+            # cfg.update({"MOP_CFG_START" : value})
+
+            cfg.update({"MOP_CFG_START" : base_addr_str})
+
+        def update_cfg_start(base_addr_str, cfg):
+            cfg.update({"CFG_START" : base_addr_str})
+
+        def add_engineGrp_to_engines(cfg):
+            for engine in cfg["engines"]:
+                engine_grp = None
+                if engine["engineName"].startswith("UNPACKER"):
+                    engine_grp = "UNPACK"
+                elif engine["engineName"].startswith("PACKER"):
+                    engine_grp = "PACK"
+                elif ("INSTRISSUE" == engine["engineName"]) or ("INSTISSUE" == engine["engineName"]):
+                    engine_grp = "MATH"
+                else:
+                    engine_grp = engine["engineName"]
+
+                engine["engineGrp"] = engine_grp
+
+        def add_globalPointer(instruction_kind, cfg):
+            globalPointer_str = "globalPointer"
+            if decoded_instruction.instruction_kind.ttwh == instruction_kind:
+                cfg[globalPointer_str] = "0xffb007f0"
+            else:
+                cfg[globalPointer_str] = "0xffb007f0"
+
+        def update_stack(cfg):
+            value = dict()
+
+            value.update({"0": ["0x8023FF", "0x802000"]})
+            value.update({"1": ["0x801FFF", "0x801C00"]})
+            value.update({"2": ["0x801BFF", "0x801800"]})
+            value.update({"3": ["0x8017FF", "0x801400"]})
+
+            cfg.update({"stack" : value})
+
+        def get_mnemonics_throughputs_from_default_cfg_file(instruction_kind, t3sim_args):
+            def get_default_cfg_file_name_incl_path(instruction_kind, t3sim_args):
+                t3sim_dir = t3sim_args["git"].split("/")[-1][:-4]
+                # return os.path.join(t3sim_dir, t3sim_args["cfg_dir"], f"{instruction_kind}_t3Cfg_{t3sim_args['rtl_tag']}.json")
+                return os.path.join(t3sim_dir, t3sim_args["cfg_dir"], f"{instruction_kind}_neo4_{t3sim_args['rtl_tag']}.json")
+
+            def get_instructions_throughput(file_name):
+                mnemonics_tpt = dict()
+                with open(file_name, 'r') as file:
+                    data = json.load(file)
+
+                    engines_str = "engines"
+                    engineInstructions_str = "engineInstructions"
+                    tpt_str = "tpt"
+                    name_str = "name"
+                    tpt_keys_str = sorted(["int32", "bf16", "fp16", "fp32", "fp64"])
+
+                    if not engines_str in data.keys():
+                        raise Exception(f"- could not find key {engines_str} in file {file_name}")
+
+                    engines = data[engines_str]
+                    for engine in engines:
+                        if engineInstructions_str not in engine.keys():
+                            raise Exception(f"- error: could not find key {engineInstructions_str} in engine: {engine}")
+
+                        instructions = engine[engineInstructions_str]
+                        for instruction in instructions:
+                            if tpt_str not in instruction.keys():
+                                raise Exception(f"- error: could not find key {tpt_str} in instruction {instruction} in engine {engine}")
+
+                            if name_str not in instruction.keys():
+                                raise Exception(f"- error: could not find key {name_str} in instruction {instruction} in engine {engine}")
+
+                            tpt = instruction[tpt_str]
+                            if sorted(tpt.keys()) != tpt_keys_str:
+                                raise Exception(f"- error: tpt key mismatch. expected: {tpt_keys_str}, received: {sorted(tpt.keys())}")
+
+                            mnemonics_tpt[instruction[name_str]] = tpt
+
+                return mnemonics_tpt
+
+            file_name_incl_path = get_default_cfg_file_name_incl_path(instruction_kind, t3sim_args)
+            print(f"- mnemonics and throughput will be obtained from file: {file_name_incl_path}")
+            return get_instructions_throughput(file_name_incl_path)
+
+        # def get_engine_names_delay(file_name):
+        #     def get_default_cfg_file_name_incl_path(instruction_kind, t3sim_args):
+        #         t3sim_dir = t3sim_args["git"].split("/")[-1][:-4]
+        #         # return os.path.join(t3sim_dir, t3sim_args["cfg_dir"], f"{instruction_kind}_t3Cfg_{t3sim_args['rtl_tag']}.json")
+        #         return os.path.join(t3sim_dir, t3sim_args["cfg_dir"], f"{instruction_kind}_neo4_{t3sim_args['rtl_tag']}.json")
+
+        #     def get_engine_names_delay(instruction_kind, t3sim_args):
+        #         with open(file_name, 'r') as file:
+        #             data = json.load(file)
+
+        #             engines_str = "engines"
+        #             engineName_str = "engineName"
+        #             delay_str = "delay"
+
+        #             if not engines_str in data.keys():
+        #                 raise Exception(f"- could not find key {engines_str} in file {file_name}")
+
+        #             engine_names_delay = dict()
+        #             engines = data[engines_str]
+        #             for engine in engines:
+        #                 if engineName_str not in engine.keys():
+        #                     raise Exception(f"- error: could not find key {engineName_str} in engine: {engine}")
+
+        #                 if delay_str not in engine.keys():
+        #                     raise Exception(f"- error: could not find key {delay_str} in engine: {engine}")
+
+        #                 engine_names_delay[engine[engineName_str]] = engine[delay_str]
+
+        #         return engine_names_delay
+
+        #     file_name =
+
+        required_keys = [
+            "cfg_base_addr_str",
+            "cfg_dir",
+            "cfg_offset",
+            "debug_dir",
+            "delay",
+            "enable_sync",
+            "git",
+            "max_num_threads_per_neo_core",
+            "mop_base_addr_str",
+            "rtl_tag",
+            "sim_dir"
+            ]
+
+        for key in required_keys:
+            if key not in t3sim_args.keys():
+                raise Exception(f"- error: key {key} not found in list of arguments")
+
+        test_dir          = test_name + "_0"
+        cfg_base_addr_str = t3sim_args["cfg_base_addr_str"]
+        cfg_dir           = os.path.join(t3sim_args["sim_dir"], t3sim_args["cfg_dir"])
+        cfg_offset        = t3sim_args["cfg_offset"]
+        debug_dir         = t3sim_args["debug_dir"]
+        delay             = t3sim_args["delay"]
+        enable_sync       = t3sim_args["enable_sync"]
+        max_num_threads   = t3sim_args["max_num_threads_per_neo_core"]
+        mop_base_addr_str = t3sim_args["mop_base_addr_str"]
+
+        if not debug_dir.endswith(test_dir):
+            test_dir = os.path.join(os.getcwd(), debug_dir, test_dir)
+        else:
+            test_dir = debug_dir
+
+        instruction_kind = get_tensix_instruction_kind(test_dir)
+
+        cfg_dict = dict()
+
+        cfg_dict.update({"enableSync"     : enable_sync})
+        cfg_dict.update({"arch"           : instruction_kind.name})
+        cfg_dict.update({"llkVersionTag"  : t3sim_args['rtl_tag']})
+        cfg_dict.update({"numTCores"      : get_num_neos(test_dir)})
+        cfg_dict.update({"numTriscCores"  : cfg_dict["numTCores"]})
+        cfg_dict.update({"orderScheme"    : [ [0,1], [0,1], [0,1,2], [1,2] ]})
+        # cfg_dict.update({"risc.cpi"       : 1.0})
+        # cfg_dict.update({"latency_l1"     : 10.0})
+        cfg_dict.update({"risc.cpi"       : t3sim_args['risc.cpi']})
+        cfg_dict.update({"latency_l1"     : t3sim_args['latency_l1']})
+        cfg_dict.update({"enableSharedL1" : t3sim_args['enableSharedL1']})
+        mnemomics_throughputs = get_mnemonics_throughputs_from_default_cfg_file(instruction_kind.name, t3sim_args)
+        update_engines(tensix.get_execution_engines_and_instructions(instruction_kind), mnemomics_throughputs, delay, cfg_dict)
+        update_unpacker_engines(cfg_dict)
+        update_packer_engines(cfg_dict)
+        add_engineGrp_to_engines(cfg_dict)
+        add_globalPointer(instruction_kind, cfg_dict)
+        update_mop_cfg_start(mop_base_addr_str, max_num_threads, cfg_dict)
+        update_cfg_start(cfg_base_addr_str, cfg_dict)
+        cfg_dict.update({"CFG_OFFSET" : cfg_offset})
+        # update_stack(test_dir, cfg_dict)
+        update_stack(cfg_dict)
+
+        # t3sim.print_json(cfg_dict, f"t3sim_cfg_{test}.json")
+        file_name = os.path.join(cfg_dir, f"t3sim_cfg_{test}.json")
+        with open(file_name, "w") as file:
+            json.dump(cfg_dict, file, indent = 2)
+
+        return cfg_dict
+
     t3sim_dir                    = t3sim_args["sim_dir"]                       if "sim_dir"                      in t3sim_args.keys() else "t3sim"
     logs_dir                     = t3sim_args["logs_dir"]                      if "logs_dir"                     in t3sim_args.keys() else "logs"
     debug_dir                    = t3sim_args["debug_dir"]                     if "debug_dir"                    in t3sim_args.keys() else ""
@@ -731,12 +1382,18 @@ def execute_t3sim_test(test, t3sim_args):
 
     cfg_dir_incl_path = os.path.join(t3sim_dir, cfg_dir)
 
-    get_cfg(test, debug_dir, cfg_dir_incl_path, mop_base_addr_str, cfg_base_addr_str, cfg_offset, enable_sync, delay, max_num_threads_per_neo_core)
+    # get_cfg(test, debug_dir, cfg_dir_incl_path, mop_base_addr_str, cfg_base_addr_str, cfg_offset, enable_sync, delay, max_num_threads_per_neo_core)
+    # get_cfg0(test, t3sim_args)
+    get_cfg1(test, t3sim_args)
     get_input_cfg(test, debug_dir, cfg_dir_incl_path, start_function)
 
     os.chdir(t3sim_dir)
+    odir = f"llk.{t3sim_args['rtl_tag']}"
+    cmd = f"mkdir -p {odir}"
+    subprocess.call(cmd.split())
     log_file_name = f"{test}{log_file_suffix}"
-    cmd = f"python t3sim.py --cfg {cfg_dir}/t3sim_cfg_{test}.json --inputcfg {cfg_dir}/t3sim_inputcfg_{test}.json"
+    # cmd = f"python t3sim.py --cfg {cfg_dir}/t3sim_cfg_{test}.json --inputcfg {cfg_dir}/t3sim_inputcfg_{test}.json"
+    cmd = f"python tneoSim.py --cfg {cfg_dir}/t3sim_cfg_{test}.json --inputcfg {cfg_dir}/t3sim_inputcfg_{test}.json --odir {odir}"
     print(f"Executing t3sim test: {test}")
     file = open(log_file_name, 'w')
     subprocess.call(cmd.split(), stdout = file, stderr = subprocess.STDOUT)
@@ -1047,13 +1704,13 @@ if "__main__" == __name__:
     rtl_args["tests"]                  = None
     rtl_args["username"]               = getpass.getuser()
     rtl_args["yml_files"]              = ["ttx-llk-sfpu.yml", "ttx-llk-fixed.yml"] if "/proj_tensix/user_dev/sjaju/work/apr/24" == rtl_args["test_bench_dir_path"] else ["ttx-test-llk-sfpu.yml", "ttx-test-llk.yml"]
-    # rtl_args["yml_files"]              = ["ttx-llk-sfpu.yml"] if "/proj_tensix/user_dev/sjaju/work/apr/24" == rtl_args["test_bench_dir_path"] else ["ttx-test-llk-sfpu.yml"]
     rtl_args["local_test_bench_dir"]   = f"from-{rtl_args['test_bench_dir']}"
     rtl_args["rtl_log_file_suffix"]    = ".rtl_test.log"
     rtl_args["src_hd_proj_dir"]        = "proj"
     rtl_args["src_hd_proj_dir_path"]   = "src/hardware/tensix"
     rtl_args["src_firmware_dir"]       = "firmware"
     rtl_args["src_firmware_dir_path"]  = "src"
+    rtl_args["rtl_tag"]                = "".join(rtl_args["test_bench_dir_path"].split(os.path.sep)[-2:])
 
     t3sim_args = dict()
     t3sim_args["assembly_yaml"]                = "assembly.yaml"
@@ -1077,37 +1734,44 @@ if "__main__" == __name__:
     t3sim_args["debug_dir"]                    = os.path.join(rtl_args["local_test_bench_dir"], rtl_args["debug_dir"])
     t3sim_args["cfg_dir"]                      = "cfg"
     t3sim_args["t3sim_log_file_suffix"]        = ".t3sim_test.log"
+    t3sim_args["rtl_tag"]                      = rtl_args["rtl_tag"]
+    t3sim_args["binutils_dir"]                 = t3sim_args["binutils_git"].split("/")[-1][:-4]
+    t3sim_args["risc.cpi"]                     = 1
+    t3sim_args["latency_l1"]                   = 10
+    t3sim_args["enableSharedL1"]               = 1
+    print(t3sim_args["binutils_dir"])
 
     # setup_rtl_environment(hostname, remote_dir_path)
-
     print(f"+ Remote server: {rtl_args["hostname"]}")
     print(f"+ Remote RTL test bench directory: {os.path.join(rtl_args["test_bench_dir_path"], rtl_args["test_bench_dir"])}")
+    print(f"+ RTL tag: {t3sim_args["rtl_tag"]}")
 
     tests = get_test_names_from_rtl_test_bench(rtl_args)
-    print(f"+ Found {len(tests)} matching test(s) tests for the given tags, suites, and yml files.")
-    print(f"+ We keep the tests only with 1 neo core.")
-    n1_tests = sorted([test for test in tests if "n1" in test])
-    other_tests = sorted([test for test in tests if test not in n1_tests])
-    if other_tests:
-        print(f"+ Following {len(other_tests)} tests will not be considered:")
-        for test in other_tests:
-            print(f"  + {test}")
+    # print(f"+ Found {len(tests)} matching test(s) tests for the given tags, suites, and yml files.")
+    # print(f"+ We keep the tests only with 1 neo core.")
+    # n1_tests = sorted([test for test in tests if "n1" in test])
+    # other_tests = sorted([test for test in tests if test not in n1_tests])
+    # if other_tests:
+    #     print(f"+ Following {len(other_tests)} tests will not be considered:")
+    #     for test in other_tests:
+    #         print(f"  + {test}")
 
-    if n1_tests:
-        print(f"+ If not executed already, the following {len(n1_tests)} will be executed on both RTL and via performance model:")
-        for test in n1_tests:
-            print(f"  + {test}")
-    else:
-        msg  = f"- error: could not fine tests with single neo core.\n"
-        msg += f"- {len(tests)} matching tests were found with the constraints set by tags, suites, and yml files.\n"
-        for test in tests:
-            msg += f"{test}\n"
+    # if n1_tests:
+    #     print(f"+ If not executed already, the following {len(n1_tests)} will be executed on both RTL and via performance model:")
+    #     for test in n1_tests:
+    #         print(f"  + {test}")
+    # else:
+    #     msg  = f"- error: could not fine tests with single neo core.\n"
+    #     msg += f"- {len(tests)} matching tests were found with the constraints set by tags, suites, and yml files.\n"
+    #     for test in tests:
+    #         msg += f"{test}\n"
 
-        raise Exception(msg.rstrip())
+    #     raise Exception(msg.rstrip())
 
-    tests = n1_tests
-    del n1_tests
-    del other_tests
+    # tests = n1_tests
+    # # tests = ["t6-quas-n4-ttx-matmul-l1-acc-multicore-height-sharded-llk"]
+    # del n1_tests
+    # del other_tests
 
     execute_rtl_tests(tests, rtl_args)
 
@@ -1121,4 +1785,4 @@ if "__main__" == __name__:
 # 1. move rtl_test.log to respective test directories.
 # 2. no hardcoded names. sys.path.append("t3sim/binutils-playground")
 # 3. no debug_prev. overwrite debug.
-# 4. ..
+# 4. ..0
