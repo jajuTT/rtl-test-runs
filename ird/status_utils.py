@@ -520,23 +520,6 @@ def failed_tests_by_test_class_to_str(statuses): # classes_statuses
 
     return msg.rstrip()
 
-def print_status(tests, rtl_args, model_args, sort_pass_rate_by = "class"):
-    statuses = get_tests_statuses(tests, rtl_args, model_args)
-    classes_statuses = get_status_by_class(statuses)
-    print(f"+ Overall status: {overall_status_to_str(statuses)}")
-    print()
-    print("+ Status by test class")
-    print(status_by_class_to_str(classes_statuses))
-    print()
-    print("+ Number of cycles: Test, Model, RTL, model/rtl")
-    print_num_cycles_model_by_rtl(get_num_cycles_model_by_rtl_from_statuses(statuses))
-    print()
-    print("+ Test class wise number of cycles. Test, model, RTL, model/rtl")
-    print(test_class_wise_num_cycles_model_by_rtl_to_str(get_test_class_wise_num_cycles_model_by_rtl_from_statuses(statuses)))
-    print()
-    print("+ Failed tests by test class")
-    print(failed_tests_by_test_class_to_str(classes_statuses))
-
 def plot_s_curve(tests_num_cycles, file_to_write = ""):
     sort_by_idx = get_sort_by_index_for_num_cycles_model_by_rtl("model_by_rtl")
     x = [None for _ in range(len(tests_num_cycles))]
@@ -561,9 +544,18 @@ def plot_s_curve(tests_num_cycles, file_to_write = ""):
     num_30pc = len([ele for ele in y if abs(ele - 1.0) <= 0.3])
 
     fig, ax = plt.subplots(figsize=(8, 4))
-    ax.plot(x, y, color = "black", linewidth = 1, alpha = 0.5)
-    ax.scatter(x, y, alpha = 0.5)
+    # ax.plot(x, y, color = "black", linewidth = 1, alpha = 0.5)
+    # ax.scatter(x, y, alpha = 0.5)
     ax.axhline(1, color = 'black', linestyle = "--", linewidth = 0.5, alpha = 0.5, label = f"{sum([1 for ele in y if ele <= 1])} tests with PM/RTL <= 1")
+    ax.plot(x, y,
+            color     = [0,0,0],
+            marker    = 'o',
+            linestyle = '-',
+            linewidth = 1.0,
+            alpha     = 1,
+            markerfacecolor = [1,1,1],
+            # markeredgecolor = colors[test_class_idx],
+            markevery = 1)
 
     # Highlight the region 0.9 to 1.1 slightly darker
     ax.axhspan(0.7, 1.3, color="gray", alpha=0.05, label=f"+/- 30% ({num_30pc}/{num_tests} tests, {((num_30pc/num_tests)*100):.0f}%)")
@@ -588,6 +580,96 @@ def plot_s_curve(tests_num_cycles, file_to_write = ""):
     plt.savefig(f"s_curve_{file_to_write}.png", format="png", bbox_inches="tight", dpi = 512)
 
     print("- end of s curve")
+
+def plot_test_class_wise_s_curve(tests, rtl_args, model_args, file_to_write):
+    sort_by = "model_by_rtl"
+    num_markers_per_line = 5
+    statuses = get_tests_statuses(tests, rtl_args, model_args)
+    perf_nums = get_test_class_wise_num_cycles_model_by_rtl_from_statuses(statuses)
+    sort_by_idx = get_sort_by_index_for_num_cycles_model_by_rtl(sort_by)
+    x_dict = dict()
+    x_labels = dict()
+    idx_x = 1
+    maxy = -1
+    for test_class in sorted(perf_nums.keys()):
+        tests_num_cycles = perf_nums[test_class]
+        if 0 != len(tests_num_cycles):
+            for test_num_cycles in sorted(tests_num_cycles.items(), key = lambda x: x[1][sort_by_idx]):
+                test = test_num_cycles[0]
+                maxy = max(maxy, test_num_cycles[1][sort_by_idx])
+                x_dict[test] = idx_x
+                idx_x += 1
+    miny = maxy
+    for test_class in perf_nums.keys():
+        tests_num_cycles = perf_nums[test_class]
+        for test_num_cycles in tests_num_cycles.values():
+            miny = min(miny, test_num_cycles[sort_by_idx])
+
+    # Get colors from the default color cycle
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    assert len(colors) >= len(perf_nums)
+
+    fig, ax = plt.subplots(figsize=(12, 4))
+
+    for test_class_idx, test_class in enumerate(sorted(perf_nums.keys())):
+        tests_num_cycles = perf_nums[test_class]
+        tests = []
+        for test_num_cycles in sorted(tests_num_cycles.items(), key = lambda x: x[1][sort_by_idx]):
+            test = test_num_cycles[0]
+            tests.append(test)
+
+        x = [x_dict[test] for test in tests]
+        y = [tests_num_cycles[test][sort_by_idx] for test in tests]
+        for idx, test in enumerate(tests):
+            x_labels[test] = f"{test} ({y[idx]:.2f})"
+        ax.plot(x, y, color = "black", linewidth = 1, alpha = 0.5)
+        # ax.scatter(x, y, alpha = 0.5)
+        mark_every = max(1, int(round(len(x) / num_markers_per_line)))
+        ax.plot(x, y,
+            color     = [0,0,0],
+            marker    = 'o',
+            linestyle = '-',
+            linewidth = 1.0,
+            alpha     = 1,
+            markerfacecolor = colors[test_class_idx],
+            # markeredgecolor = colors[test_class_idx],
+            markevery = mark_every)
+
+        ax.axvspan(min(x) - 0.5, max(x) + 0.5, color = colors[test_class_idx], alpha=0.05)
+        y_for_text = maxy - (maxy - miny) * 0.07 if len(x) > 3 else maxy
+        ax.text(min(x), y_for_text, test_class, color = colors[test_class_idx])
+
+    # Labels and title
+    ax.set_xlabel("Tests")
+    ax.set_ylabel("Perf comparison (PM/RTL)")
+    # ax.set_title("col1 vs col5 Plot")
+    ax.set_xticks(list(x_dict.values()))
+    ax.set_xticklabels(list(x_labels.values()))
+    ax.tick_params(axis='x', labelrotation=90, labelsize = 6)
+
+    plt.savefig(f"test_class_wise_s_curve_{file_to_write}.svg", format="svg", bbox_inches="tight", dpi = 512)
+    plt.savefig(f"test_class_wise_s_curve_{file_to_write}.png", format="png", bbox_inches="tight", dpi = 512)
+
+def print_status(tests, rtl_args, model_args):
+    statuses = get_tests_statuses(tests, rtl_args, model_args)
+    classes_statuses = get_status_by_class(statuses)
+    perf_nums = get_num_cycles_model_by_rtl_from_statuses(statuses)
+    print(f"+ Overall status: {overall_status_to_str(statuses)}")
+    print()
+    print("+ Status by test class")
+    print(status_by_class_to_str(classes_statuses))
+    print()
+    print("+ Number of cycles: Test, Model, RTL, model/rtl")
+    print_num_cycles_model_by_rtl(perf_nums)
+    print()
+    print("+ Test class wise number of cycles. Test, model, RTL, model/rtl")
+    print(test_class_wise_num_cycles_model_by_rtl_to_str(get_test_class_wise_num_cycles_model_by_rtl_from_statuses(statuses)))
+    print()
+    print("+ Failed tests by test class")
+    print(failed_tests_by_test_class_to_str(classes_statuses))
+
+    plot_s_curve(perf_nums, rtl_args['rtl_tag'])
+    plot_test_class_wise_s_curve(tests, rtl_args, model_args, rtl_args['rtl_tag'])
 
 
 
