@@ -263,6 +263,36 @@ class polaris_big_tests:
                 input_cfg[tc_key][f"th2Path"] = ""
                 input_cfg[tc_key][f"th2Elf"]  = ""
 
+        if "t6-quas-n1-ttx-recip-Float16_b-upk-to-dest-llk" == test:
+            msg = f"{test} needs thread ID changes.\n"
+            msg += "in the inputcfg we are going to make the following changes.\n"
+            msg += "1. check that it has 3 threads, change it to 4 threads\n"
+            msg += "1. move thread 2 path and files to thread 3\n"
+            msg += "1. move thread 1 path and files to thread 2\n"
+            msg += "1. leave thread 1 empty\n"
+
+            print(msg.rstrip())
+
+            for neo_id in range(num_neos):
+                tc_key = f"tc{neo_id}"
+
+                if 3 != input_cfg[tc_key]["numThreads"]:
+                    raise Exception(f"- error: expected numThreads to be 3, received {input_cfg[tc_key]["numThreads"]}. Core: {tc_key}")
+
+                input_cfg[tc_key]["numThreads"] = 4 # change it to 4.
+
+                # add thread 3. move thread 2 to thread 3.
+                input_cfg[tc_key]["th3Path"] = input_cfg[tc_key]["th2Path"]
+                input_cfg[tc_key]["th3Elf"]  = input_cfg[tc_key]["th2Elf"]
+
+                # move thread 1 to thread 2.
+                input_cfg[tc_key]["th2Path"] = input_cfg[tc_key]["th1Path"]
+                input_cfg[tc_key]["th2Elf"]  = input_cfg[tc_key]["th1Elf"]
+
+                # make thread 1 empty
+                input_cfg[tc_key][f"th1Path"] = ""
+                input_cfg[tc_key][f"th1Elf"]  = ""
+
         return input_cfg_dict
 
     @staticmethod
