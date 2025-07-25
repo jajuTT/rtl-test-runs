@@ -392,8 +392,8 @@ if "__main__" == __name__:
     for idx, test in enumerate(sorted(tests)):
         print(f"  - {idx:>{int(math.log(len(tests))) + 1}}. {test}")
 
-    # rtl_utils.rtl_tests.execute_tests(tests, rtl_args)
-    # polaris_big_utils.polaris_big_tests.execute_tests(tests, rtl_args, polaris_big_args)
+    rtl_utils.rtl_tests.execute_tests(tests, rtl_args)
+    polaris_big_utils.polaris_big_tests.execute_tests(tests, rtl_args, polaris_big_args)
     status_utils.print_status(tests, rtl_args, polaris_big_args)
 
     ird_release(selID)

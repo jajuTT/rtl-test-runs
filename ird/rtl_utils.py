@@ -447,7 +447,7 @@ class rtl_tests:
         remote_src_dir_incl_path = os.path.join(args[key_remote_root_dir_path], args[key_remote_root_dir], args[key_src_dir])
         local_src_dir_incl_path = os.path.join(args[key_local_root_dir_path], args[key_local_root_dir], args[key_src_dir])
 
-        dirs_to_copy = ["firmware", "hardware", "meta"]
+        dirs_to_copy = ["firmware", "hardware", "meta", "verif/tensix/tests"]
         num_processes = min(args[key_num_processes], len(dirs_to_copy))
 
         with multiprocessing.Pool(processes = num_processes) as pool:
