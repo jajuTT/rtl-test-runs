@@ -185,10 +185,11 @@ class polaris_big_tests:
 
     @staticmethod
     def get_inputcfg(test_id, test, rtl_args, model_args):
-        key_model_start_function    = "start_function"
-        key_rtl_local_root_dir      = "local_root_dir"
-        key_rtl_local_root_dir_path = "local_root_dir_path"
-        key_rtl_test_dir_suffix     = "test_dir_suffix"
+        key_model_start_function             = "start_function"
+        key_rtl_local_root_dir               = "local_root_dir"
+        key_rtl_local_root_dir_path          = "local_root_dir_path"
+        key_rtl_max_num_threads_per_neo_core = "max_num_threads_per_neo_core"
+        key_rtl_test_dir_suffix              = "test_dir_suffix"
 
         for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_rtl_")]:
             assert key in rtl_args.keys(), f"- error: {key} not found in given rtl_args dict"
@@ -219,12 +220,19 @@ class polaris_big_tests:
             neo_dir = f"neo_{neo_id}"
             for pwd, _, _ in os.walk(test_dir_incl_path):
                 if pwd.endswith(neo_dir):
+                    input_neo["startFunction"] = model_args[key_model_start_function]
+                    input_neo["numThreads"] = rtl_args[key_rtl_max_num_threads_per_neo_core]
+                    for thread_id in range(rtl_args[key_rtl_max_num_threads_per_neo_core]):
+                        key = f"th{thread_id}Path"
+                        input_neo[f"th{thread_id}Path"] = ""
+                        input_neo[f"th{thread_id}Elf"] = ""
+
                     num_threads = t3sim_utils.get_num_threads(pwd)
                     if num_threads in {0, None}:
                         raise Exception(f"- error: expected at least one thread, received {num_threads}. Path: {pwd}")
 
-                    input_neo["startFunction"] = model_args[key_model_start_function]
-                    input_neo["numThreads"] = num_threads
+                    # input_neo["startFunction"] = model_args[key_model_start_function]
+                    # input_neo["numThreads"] = num_threads
 
                     neo_os_walk = os.walk(pwd)
                     for pwd1, _, files in neo_os_walk:
@@ -250,10 +258,10 @@ class polaris_big_tests:
             for neo_id in range(num_neos):
                 tc_key = f"tc{neo_id}"
 
-                if 3 != input_cfg[tc_key]["numThreads"]:
-                    raise Exception(f"- error: expected numThreads to be 3, received {input_cfg[tc_key]["numThreads"]}. Core: {tc_key}")
+                # if 3 != input_cfg[tc_key]["numThreads"]:
+                #     raise Exception(f"- error: expected numThreads to be 3, received {input_cfg[tc_key]["numThreads"]}. Core: {tc_key}")
 
-                input_cfg[tc_key]["numThreads"] = 4 # change it to 4.
+                # input_cfg[tc_key]["numThreads"] = 4 # change it to 4.
 
                 # add thread 3
                 input_cfg[tc_key]["th3Path"] = input_cfg[tc_key]["th2Path"]
@@ -276,10 +284,10 @@ class polaris_big_tests:
             for neo_id in range(num_neos):
                 tc_key = f"tc{neo_id}"
 
-                if 3 != input_cfg[tc_key]["numThreads"]:
-                    raise Exception(f"- error: expected numThreads to be 3, received {input_cfg[tc_key]["numThreads"]}. Core: {tc_key}")
+                # if 3 != input_cfg[tc_key]["numThreads"]:
+                #     raise Exception(f"- error: expected numThreads to be 3, received {input_cfg[tc_key]["numThreads"]}. Core: {tc_key}")
 
-                input_cfg[tc_key]["numThreads"] = 4 # change it to 4.
+                # input_cfg[tc_key]["numThreads"] = 4 # change it to 4.
 
                 # add thread 3. move thread 2 to thread 3.
                 input_cfg[tc_key]["th3Path"] = input_cfg[tc_key]["th2Path"]
