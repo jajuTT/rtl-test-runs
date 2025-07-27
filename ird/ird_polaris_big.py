@@ -283,29 +283,30 @@ if "__main__" == __name__:
     #     "ttx-test-llk-sfpu.yml"  : {"suites" : "postcommit"},
     #     "ttx-test-llk.yml"       : {"suites" : "postcommit"}}
 
-    rtl_args["debug_dir_path"]        = "rsim"
-    rtl_args["debug_dir"]             = "debug"
-    rtl_args["force"]                 = False
-    rtl_args["git"]                   = "git@yyz-tensix-gitlab:tensix-hw/ws-tensix.git" # TODO: rtl_args["test_bench_dir"] and rtl_args["git"] should not be independent.
-    rtl_args["infra_dir"]             = "infra"
-    rtl_args["num_processes"]         = 8
-    rtl_args["project.yaml"]          = "project.yml"
-    rtl_args["remote_root_dir"]       = "ws-tensix"
-    rtl_args["rtl_log_file_suffix"]   = ".rtl_test.log"
+    rtl_args["debug_dir_path"]           = "rsim"
+    rtl_args["debug_dir"]                = "debug"
+    rtl_args["force"]                    = False
+    rtl_args["git"]                      = "git@yyz-tensix-gitlab:tensix-hw/ws-tensix.git" # TODO: rtl_args["test_bench_dir"] and rtl_args["git"] should not be independent.
+    rtl_args["infra_dir"]                = "infra"
+    rtl_args["ird_server"]               = "yyz-ird"
+    rtl_args["isa_file_name"]            = "assembly.yaml"
+    rtl_args["max_num_threads_per_neo_core"] = 4
+    rtl_args["num_processes"]            = 8
+    rtl_args["project.yaml"]             = "project.yml"
+    rtl_args["remote_root_dir"]          = "ws-tensix"
+    rtl_args["rtl_log_file_suffix"]      = ".rtl_test.log"
     rtl_args["sim_result.yaml_key_result_val_PASS"] = "PASS"
     rtl_args["sim_result.yaml_key_result"] = "res"
-    rtl_args["sim_result.yaml"]       = "sim_result.yml"
-    rtl_args["src_firmware_dir_path"] = "src"
-    rtl_args["src_firmware_dir"]      = "firmware"
-    rtl_args["src_hd_proj_dir_path"]  = "src/hardware/tensix"
-    rtl_args["src_hd_proj_dir"]       = "proj"
-    rtl_args["ssh_key_file"]          = os.path.expanduser("~/.ssh/id_ed25519")
-    rtl_args["test_dir_suffix"]       =  "_0"
-    rtl_args["tests_dir"]             = "infra/tensix/rsim/tests"
-    rtl_args["username"]              = getpass.getuser()
-    rtl_args["ird_server"]            = "yyz-ird"
-    rtl_args["src_dir"]               = "src"
-    rtl_args["isa_file_name"]         = "assembly.yaml"
+    rtl_args["sim_result.yaml"]          = "sim_result.yml"
+    rtl_args["src_dir"]                  = "src"
+    rtl_args["src_firmware_dir_path"]    = "src"
+    rtl_args["src_firmware_dir"]         = "firmware"
+    rtl_args["src_hd_proj_dir_path"]     = "src/hardware/tensix"
+    rtl_args["src_hd_proj_dir"]          = "proj"
+    rtl_args["ssh_key_file"]             = os.path.expanduser("~/.ssh/id_ed25519")
+    rtl_args["test_dir_suffix"]          =  "_0"
+    rtl_args["tests_dir"]                = "infra/tensix/rsim/tests"
+    rtl_args["username"]                 = getpass.getuser()
 
     # month_str =  datetime.datetime.now().strftime('%B').lower()
     # day_str   = f"{datetime.datetime.now().day:02d}"
@@ -343,7 +344,6 @@ if "__main__" == __name__:
     polaris_big_args["cfg_order_scheme"]           = [ [0,1], [0,1], [0,1,2], [1,2] ]
     polaris_big_args["cfg_risc.cpi"]               = 1.0
     polaris_big_args["default_cfg_file_name"]      = f"ttqs_neo4_{rtl_args["rtl_tag"]}.json"
-    polaris_big_args["default_cfg_file_name"]      = f"ttqs_neo4_mar18.json"
     polaris_big_args["force"]                      = rtl_args["force"] # rtl_args["force"]
     polaris_big_args["instruction_kind"]           = "ttqs"
     polaris_big_args["model_cfg_dir"]              = "__config_files"

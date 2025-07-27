@@ -486,7 +486,7 @@ def status_by_class_to_str(statuses): # classes_statuses
     max_class_len       = max([len(key) for key in statuses.keys()])
     max_num_tests_len   = math.ceil(math.log10(max([len(status[key_tests]) for status in statuses.values()])))
     max_num_pass_len    = math.ceil(math.log10(max([len(status[PASS]) for status in statuses.values()])))
-    max_num_fails_len   = math.ceil(math.log10(max([sum(len(status[key]) for key in failure_bins_as_str) for status in statuses.values()])))
+    max_num_fails_len   = math.ceil(math.log10(max(1, max([sum(len(status[key]) for key in failure_bins_as_str) for status in statuses.values()]))))
     max_bin_str_len     = max([len(key) for key in failure_bins_as_str])
 
     # del statuses[overall]
@@ -500,15 +500,16 @@ def status_by_class_to_str(statuses): # classes_statuses
         per_cent_pass  = num_pass/num_tests * 100.
         per_cent_fails = sum(num_fails)/num_tests * 100.
         msg += f"{idx:>{max_idx_len}}. {test_class:<{max_class_len}}: Num tests: {num_tests:>{max_num_tests_len}}, Num pass: {num_pass:>{max_num_pass_len}} ({per_cent_pass:6.2f} %), Num fails: {sum(num_fails):>{max_num_fails_len}} ({per_cent_fails:6.2f} %)\n"
-        msg += "  - failure bins:\n"
-        for bin in failure_bins_as_str:
-            msg += f"    - {bin:<{max_bin_str_len}}: {len(status[bin]):>{max_num_fails_len}}\n"
+        if 0 == num_fails:
+            msg += "  - failure bins:\n"
+            for bin in failure_bins_as_str:
+                msg += f"    - {bin:<{max_bin_str_len}}: {len(status[bin]):>{max_num_fails_len}}\n"
 
     return msg
 
 def failed_tests_by_test_class_to_str(statuses): # classes_statuses
     failure_bin_as_str = sorted(get_failure_bins_as_str())
-    max_idx_len = math.ceil(math.log10(max(len(status[bin]) for status in statuses.values() for bin in failure_bin_as_str)))
+    max_idx_len = math.ceil(math.log10(max(1, max(len(status[bin]) for status in statuses.values() for bin in failure_bin_as_str))))
     msg = ""
     for c, status in statuses.items():
         msg += f"+ Test class: {c}\n"
