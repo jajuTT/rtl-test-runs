@@ -26,7 +26,8 @@ def get_failure_bins():
         ["IndexError"],
         ["Timeout", "reached for pipe"],
         ["Timeout", "reached for valid check"],
-        ["Too many resources to select from"]
+        ["Too many resources to select from"],
+        ["Write Valid condition Invalid"]
     ]
 
     return sorted(bins)
@@ -500,10 +501,9 @@ def status_by_class_to_str(statuses): # classes_statuses
         per_cent_pass  = num_pass/num_tests * 100.
         per_cent_fails = sum(num_fails)/num_tests * 100.
         msg += f"{idx:>{max_idx_len}}. {test_class:<{max_class_len}}: Num tests: {num_tests:>{max_num_tests_len}}, Num pass: {num_pass:>{max_num_pass_len}} ({per_cent_pass:6.2f} %), Num fails: {sum(num_fails):>{max_num_fails_len}} ({per_cent_fails:6.2f} %)\n"
-        if 0 == num_fails:
-            msg += "  - failure bins:\n"
-            for bin in failure_bins_as_str:
-                msg += f"    - {bin:<{max_bin_str_len}}: {len(status[bin]):>{max_num_fails_len}}\n"
+        msg += "  - failure bins:\n"
+        for bin in failure_bins_as_str:
+            msg += f"    - {bin:<{max_bin_str_len}}: {len(status[bin]):>{max_num_fails_len}}\n"
 
     return msg
 
