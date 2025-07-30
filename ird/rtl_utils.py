@@ -364,55 +364,74 @@ class rtl_tests:
         for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_")]:
             assert key in args.keys(), f"- error: {key} not found in given args dict"
 
-        hostname = args[key_hostname]
-        username = args[key_username]
-        port     = args[key_port]
-        with fabric.Connection(
-            host = hostname,
-            user = username,
-            port = port) as conn:
-            remote_root_dir_incl_path        = os.path.join(args[key_remote_root_dir_path], args[key_remote_root_dir])
-            local_root_dir_incl_path         = os.path.join(args[key_local_root_dir_path], args[key_local_root_dir])
-            log_file                         = test + args[key_rtl_log_file_suffix]
-            rel_log_file_dir                 = os.path.join(args[key_debug_dir_path], args[key_debug_dir], test + args[key_test_dir_suffix])
-            remote_log_file_dir              = os.path.join(remote_root_dir_incl_path, rel_log_file_dir)
-            remote_log_file_incl_path        = os.path.join(remote_log_file_dir, log_file)
-            remote_sim_result_yaml_incl_path = os.path.join(remote_log_file_dir, args[key_sim_result_yaml])
+        rel_log_file_dir = os.path.join(args[key_debug_dir_path], args[key_debug_dir], test + args[key_test_dir_suffix])
+        log_file = test + args[key_rtl_log_file_suffix]
 
-            is_test_status_pass = False
-            with conn.sftp() as sftp:
-                if args[key_force]:
-                    with contextlib.suppress(FileNotFoundError):
-                        sftp.remove(remote_sim_result_yaml_incl_path)
-
-                with contextlib.suppress(FileNotFoundError), sftp.open(remote_sim_result_yaml_incl_path, "r") as remote_file:
-                    data = yaml.safe_load(remote_file.read().decode("utf-8"))
-                    assert isinstance(data, dict), f"- error: could not obtain correct YAML mapping from file {remote_sim_result_yaml_incl_path} on {conn.host}"
-                    assert args[key_sim_result_yaml_key_result] in data.keys(), f"- error: key {args[key_sim_result_yaml_key_result]} not found in file {remote_sim_result_yaml_incl_path} on {conn.host}"
+        check_local_files = True if not args[key_force] else False
+        check_remote_files = not check_local_files
+        if check_local_files:
+            local_root_dir_incl_path  = os.path.join(args[key_local_root_dir_path], args[key_local_root_dir])
+            log_file_dir              = os.path.join(local_root_dir_incl_path, rel_log_file_dir)
+            sim_result_yaml_incl_path = os.path.join(log_file_dir, args[key_sim_result_yaml])
+            if os.path.isfile(sim_result_yaml_incl_path):
+                with open(sim_result_yaml_incl_path, "r") as sim_result_yaml_file:
+                    data = yaml.safe_load(sim_result_yaml_file.read())
+                    assert isinstance(data, dict), f"- error: could not obtain correct YAML mapping from file {sim_result_yaml_incl_path}"
+                    assert args[key_sim_result_yaml_key_result] in data.keys(), f"- error: key {args[key_sim_result_yaml_key_result]} not found in file {sim_result_yaml_incl_path}"
                     is_test_status_pass = data[args[key_sim_result_yaml_key_result]] == args[key_sim_result_yaml_key_result_val_PASS]
-
-            if not is_test_status_pass:
-                with conn.cd(remote_root_dir_incl_path):
-                    cmds = []
-                    cmds.append(f"pwd")
-                    if args[key_rtl_tag] in set(["feb19", "mar18"]):
-                        cmds.append(f"source SETUP.cctb.sh")
-                    else:
-                        cmds.append(f"source SETUP.cctb.local.sh")
-                    cmds.append(f"mkdir -p {remote_log_file_dir}")
-                    cmds.append(f"rsim run_test --test {test} > {remote_log_file_incl_path} 2>&1")
-
-                    cmd = ' && '.join(cmds)
-                    print(f"- test ID {test_id}. executing command {cmd} on server {hostname}, port {port}")
-                    result = conn.run(cmd, warn = True, pty = True, hide = True) # warn: yes, move to next
-
-                    if result.failed:
-                        print(f"- test {test!r} execuition failed")
+                    if not is_test_status_pass:
+                        check_remote_files = True
             else:
-                print(f"- test ID {test_id}. test: {test!r}. pass: {is_test_status_pass}")
+                check_remote_files = True
 
-            # copy data
-            copy.copy_dir_from_remote_to_local(hostname, username, port, remote_log_file_dir, os.path.join(local_root_dir_incl_path, rel_log_file_dir))
+        if check_remote_files:
+            hostname = args[key_hostname]
+            username = args[key_username]
+            port     = args[key_port]
+            with fabric.Connection(
+                host = hostname,
+                user = username,
+                port = port) as conn:
+                remote_root_dir_incl_path        = os.path.join(args[key_remote_root_dir_path], args[key_remote_root_dir])
+                local_root_dir_incl_path         = os.path.join(args[key_local_root_dir_path], args[key_local_root_dir])
+                remote_log_file_dir              = os.path.join(remote_root_dir_incl_path, rel_log_file_dir)
+                remote_log_file_incl_path        = os.path.join(remote_log_file_dir, log_file)
+                remote_sim_result_yaml_incl_path = os.path.join(remote_log_file_dir, args[key_sim_result_yaml])
+
+                is_test_status_pass = False
+                with conn.sftp() as sftp:
+                    if args[key_force]:
+                        with contextlib.suppress(FileNotFoundError):
+                            sftp.remove(remote_sim_result_yaml_incl_path)
+
+                    with contextlib.suppress(FileNotFoundError), sftp.open(remote_sim_result_yaml_incl_path, "r") as remote_file:
+                        data = yaml.safe_load(remote_file.read().decode("utf-8"))
+                        assert isinstance(data, dict), f"- error: could not obtain correct YAML mapping from file {remote_sim_result_yaml_incl_path} on {conn.host}"
+                        assert args[key_sim_result_yaml_key_result] in data.keys(), f"- error: key {args[key_sim_result_yaml_key_result]} not found in file {remote_sim_result_yaml_incl_path} on {conn.host}"
+                        is_test_status_pass = data[args[key_sim_result_yaml_key_result]] == args[key_sim_result_yaml_key_result_val_PASS]
+
+                if not is_test_status_pass:
+                    with conn.cd(remote_root_dir_incl_path):
+                        cmds = []
+                        cmds.append(f"pwd")
+                        if args[key_rtl_tag] in set(["feb19", "mar18"]):
+                            cmds.append(f"source SETUP.cctb.sh")
+                        else:
+                            cmds.append(f"source SETUP.cctb.local.sh")
+                        cmds.append(f"mkdir -p {remote_log_file_dir}")
+                        cmds.append(f"rsim run_test --test {test} > {remote_log_file_incl_path} 2>&1")
+
+                        cmd = ' && '.join(cmds)
+                        print(f"- test ID {test_id}. executing command {cmd} on server {hostname}, port {port}")
+                        result = conn.run(cmd, warn = True, pty = True, hide = True) # warn: yes, move to next
+
+                        if result.failed:
+                            print(f"- test {test!r} execuition failed")
+                else:
+                    print(f"- test ID {test_id}. test: {test!r}. pass: {is_test_status_pass}")
+
+                # copy data
+                copy.copy_dir_from_remote_to_local(hostname, username, port, remote_log_file_dir, os.path.join(local_root_dir_incl_path, rel_log_file_dir))
 
     @staticmethod
     def execute_tests(tests, args):

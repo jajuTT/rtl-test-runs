@@ -413,7 +413,7 @@ class polaris_big_tests:
         polaris_big_tests.check_and_update_isa_file(rtl_args, model_args)
 
         num_processes = min([rtl_args[key_num_processes], model_args[key_num_processes], len(tests)])
-        print(f"- Number of t3sim tests to execute:                          {len(tests)}")
+        print(f"- Number of tests to execute via model:                      {len(tests)}")
         print(f"- Number of parallel processes to execute polaris_big tests: {num_processes}")
 
         with multiprocessing.Pool(processes = num_processes) as pool:
