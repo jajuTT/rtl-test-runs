@@ -26,7 +26,8 @@ def get_failure_bins():
         ["IndexError"],
         ["Timeout", "reached for pipe"],
         ["Timeout", "reached for valid check"],
-        ["Too many resources to select from"]
+        ["Too many resources to select from"],
+        ["Write Valid condition Invalid"]
     ]
 
     return sorted(bins)
@@ -486,7 +487,7 @@ def status_by_class_to_str(statuses): # classes_statuses
     max_class_len       = max([len(key) for key in statuses.keys()])
     max_num_tests_len   = math.ceil(math.log10(max([len(status[key_tests]) for status in statuses.values()])))
     max_num_pass_len    = math.ceil(math.log10(max([len(status[PASS]) for status in statuses.values()])))
-    max_num_fails_len   = math.ceil(math.log10(max([sum(len(status[key]) for key in failure_bins_as_str) for status in statuses.values()])))
+    max_num_fails_len   = math.ceil(math.log10(max(1, max([sum(len(status[key]) for key in failure_bins_as_str) for status in statuses.values()]))))
     max_bin_str_len     = max([len(key) for key in failure_bins_as_str])
 
     # del statuses[overall]
@@ -508,7 +509,7 @@ def status_by_class_to_str(statuses): # classes_statuses
 
 def failed_tests_by_test_class_to_str(statuses): # classes_statuses
     failure_bin_as_str = sorted(get_failure_bins_as_str())
-    max_idx_len = math.ceil(math.log10(max(len(status[bin]) for status in statuses.values() for bin in failure_bin_as_str)))
+    max_idx_len = math.ceil(math.log10(max(1, max(len(status[bin]) for status in statuses.values() for bin in failure_bin_as_str))))
     msg = ""
     for c, status in statuses.items():
         msg += f"+ Test class: {c}\n"
