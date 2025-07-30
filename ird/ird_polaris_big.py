@@ -341,7 +341,7 @@ if "__main__" == __name__:
     polaris_big_args["cfg_enable_sync"]            = 1
     polaris_big_args["cfg_global_pointer"]         = "0xffb007f0"
     polaris_big_args["cfg_latency_l1"]             = 10.0
-    polaris_big_args["cfg_order_scheme"]           = [ [0,1], [0,1], [0,1,2], [1,2] ]
+    polaris_big_args["cfg_order_scheme"]           = [ [0,1], [0,1], [0,2], [] ]
     polaris_big_args["cfg_risc.cpi"]               = 1.0
     polaris_big_args["default_cfg_file_name"]      = f"ttqs_neo4_{rtl_args["rtl_tag"]}.json"
     polaris_big_args["force"]                      = rtl_args["force"] # rtl_args["force"]

@@ -244,62 +244,81 @@ class polaris_big_tests:
                                 input_neo[f"th{thread_id}Path"] = pwd1
                                 input_neo[f"th{thread_id}Elf"] = file
 
+                    if "t6-quas-n1-ttx-recip-Float16_b-upk-to-dest-llk" == test:
+                        input_neo["th3Path"] = input_neo["th2Path"]
+                        input_neo["th3Elf"]  = input_neo["th2Elf"]
+
+                        # move thread 1 to thread 2.
+                        input_neo["th2Path"] = input_neo["th1Path"]
+                        input_neo["th2Elf"]  = input_neo["th1Elf"]
+
+                        # make thread 1 empty
+                        input_neo[f"th1Path"] = ""
+                        input_neo[f"th1Elf"]  = ""
+                    else:
+                        input_neo["th3Path"] = input_neo["th2Path"]
+                        input_neo["th3Elf"]  = input_neo["th2Elf"]
+
+                        # make thread 2 empty
+                        input_neo[f"th2Path"] = ""
+                        input_neo[f"th2Elf"]  = ""
+
             input_cfg[tc_key] = {key : input_neo[key] for key in sorted(input_neo.keys())}
 
-        if "dvalid" in test:
-            msg = f"{test} contains dvalid.\n"
-            msg += "in the inputcfg we are going to make the following changes.\n"
-            msg += "1. check that it has 3 threads, change it to 4 threads\n"
-            msg += "1. move thread 2 path and files to thread 3\n"
-            msg += "1. leave thread 2 empty\n"
+        # if "dvalid" in test:
+        #     msg = f"{test} contains dvalid.\n"
+        #     msg += "in the inputcfg we are going to make the following changes.\n"
+        #     msg += "1. check that it has 3 threads, change it to 4 threads\n"
+        #     msg += "1. move thread 2 path and files to thread 3\n"
+        #     msg += "1. leave thread 2 empty\n"
 
-            print(msg)
+        #     print(msg)
 
-            for neo_id in range(num_neos):
-                tc_key = f"tc{neo_id}"
+        #     for neo_id in range(num_neos):
+        #         tc_key = f"tc{neo_id}"
 
-                # if 3 != input_cfg[tc_key]["numThreads"]:
-                #     raise Exception(f"- error: expected numThreads to be 3, received {input_cfg[tc_key]["numThreads"]}. Core: {tc_key}")
+        #         # if 3 != input_cfg[tc_key]["numThreads"]:
+        #         #     raise Exception(f"- error: expected numThreads to be 3, received {input_cfg[tc_key]["numThreads"]}. Core: {tc_key}")
 
-                # input_cfg[tc_key]["numThreads"] = 4 # change it to 4.
+        #         # input_cfg[tc_key]["numThreads"] = 4 # change it to 4.
 
-                # add thread 3
-                input_cfg[tc_key]["th3Path"] = input_cfg[tc_key]["th2Path"]
-                input_cfg[tc_key]["th3Elf"]  = input_cfg[tc_key]["th2Elf"]
+        #         # add thread 3
+        #         input_cfg[tc_key]["th3Path"] = input_cfg[tc_key]["th2Path"]
+        #         input_cfg[tc_key]["th3Elf"]  = input_cfg[tc_key]["th2Elf"]
 
-                # make thread 2 empty
-                input_cfg[tc_key][f"th2Path"] = ""
-                input_cfg[tc_key][f"th2Elf"]  = ""
+        #         # make thread 2 empty
+        #         input_cfg[tc_key][f"th2Path"] = ""
+        #         input_cfg[tc_key][f"th2Elf"]  = ""
 
-        if "t6-quas-n1-ttx-recip-Float16_b-upk-to-dest-llk" == test:
-            msg = f"{test} needs thread ID changes.\n"
-            msg += "in the inputcfg we are going to make the following changes.\n"
-            msg += "1. check that it has 3 threads, change it to 4 threads\n"
-            msg += "1. move thread 2 path and files to thread 3\n"
-            msg += "1. move thread 1 path and files to thread 2\n"
-            msg += "1. leave thread 1 empty\n"
+        # if "t6-quas-n1-ttx-recip-Float16_b-upk-to-dest-llk" == test:
+        #     msg = f"{test} needs thread ID changes.\n"
+        #     msg += "in the inputcfg we are going to make the following changes.\n"
+        #     msg += "1. check that it has 3 threads, change it to 4 threads\n"
+        #     msg += "1. move thread 2 path and files to thread 3\n"
+        #     msg += "1. move thread 1 path and files to thread 2\n"
+        #     msg += "1. leave thread 1 empty\n"
 
-            print(msg.rstrip())
+        #     print(msg.rstrip())
 
-            for neo_id in range(num_neos):
-                tc_key = f"tc{neo_id}"
+        #     for neo_id in range(num_neos):
+        #         tc_key = f"tc{neo_id}"
 
-                # if 3 != input_cfg[tc_key]["numThreads"]:
-                #     raise Exception(f"- error: expected numThreads to be 3, received {input_cfg[tc_key]["numThreads"]}. Core: {tc_key}")
+        #         # if 3 != input_cfg[tc_key]["numThreads"]:
+        #         #     raise Exception(f"- error: expected numThreads to be 3, received {input_cfg[tc_key]["numThreads"]}. Core: {tc_key}")
 
-                # input_cfg[tc_key]["numThreads"] = 4 # change it to 4.
+        #         # input_cfg[tc_key]["numThreads"] = 4 # change it to 4.
 
-                # add thread 3. move thread 2 to thread 3.
-                input_cfg[tc_key]["th3Path"] = input_cfg[tc_key]["th2Path"]
-                input_cfg[tc_key]["th3Elf"]  = input_cfg[tc_key]["th2Elf"]
+        #         # add thread 3. move thread 2 to thread 3.
+        #         input_cfg[tc_key]["th3Path"] = input_cfg[tc_key]["th2Path"]
+        #         input_cfg[tc_key]["th3Elf"]  = input_cfg[tc_key]["th2Elf"]
 
-                # move thread 1 to thread 2.
-                input_cfg[tc_key]["th2Path"] = input_cfg[tc_key]["th1Path"]
-                input_cfg[tc_key]["th2Elf"]  = input_cfg[tc_key]["th1Elf"]
+        #         # move thread 1 to thread 2.
+        #         input_cfg[tc_key]["th2Path"] = input_cfg[tc_key]["th1Path"]
+        #         input_cfg[tc_key]["th2Elf"]  = input_cfg[tc_key]["th1Elf"]
 
-                # make thread 1 empty
-                input_cfg[tc_key][f"th1Path"] = ""
-                input_cfg[tc_key][f"th1Elf"]  = ""
+        #         # make thread 1 empty
+        #         input_cfg[tc_key][f"th1Path"] = ""
+        #         input_cfg[tc_key][f"th1Elf"]  = ""
 
         return input_cfg_dict
 
@@ -367,7 +386,7 @@ class polaris_big_tests:
 
         cmds = [
             f"cd {pb_dir_incl_path}",
-            f"PYTHONPATH='.' python ttsim/back/tensix_neo/tneoSim.py --cfg {cfg_file_name} --inputcfg {inputcfg_file_name} --odir {model_args[key_model_odir]}"
+            f"PYTHONPATH='.' python ttsim/back/tensix_neo/tneoSim.py --cfg {cfg_file_name} --inputcfg {inputcfg_file_name} --odir {model_args[key_model_odir]} --debug 15"
         ]
         cmd = " && ".join(cmds)
         print(f"- test ID: {test_id}, executing: {cmd}")
