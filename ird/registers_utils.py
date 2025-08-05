@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import math
 import bs4
 import json
 import os
@@ -13,16 +14,16 @@ def to_int(value):
     elif isinstance(value, str):
         if value.startswith('0x') or value.startswith('0X'):
             return int(value, 16)
-        
+
         if value.startswith('0b') or value.startswith('0B'):
             return int(value, 2)
-        
+
         if value.startswith('0o') or value.startswith('0O'):
             return int(value, 8)
-        
+
         if value.isdigit():
             return int(value)
-        
+
         raise ValueError(f"Invalid string for conversion to int: {value}")
 
     raise ValueError(f"Unsupported type for conversion: {type(value)}")
@@ -39,116 +40,169 @@ def get_files_from_path(path, name=None, extension=None):
 def parse_html_file(file_name):
     if not os.path.exists(file_name):
         raise FileNotFoundError(f"HTML file '{file_name}' does not exist.")
-    
+
     with open(file_name, 'r') as f:
         content = f.read()
-    
+
     soup = bs4.BeautifulSoup(content, 'html.parser')
-    return soup 
+    return soup
 
-def parse_soup(soup, keys = None):
-    table = soup.find('table')
-    if not table:
-        raise ValueError("No table found in the HTML file.")
-    
-    data_cells = soup.find_all('td', class_='data')
-    if not data_cells:
-        raise ValueError("No data cells found in the table.")
-    
-    # data = []
-    addrs = dict()
-    regs = dict()
-    for cell in data_cells:
-        key = cell.get_text().strip()
-        if not key:
-            continue
+def resides_within_range(ele, start, end):
+    return ele >= start and ele <= end
 
-        # Get the parent row
-        row = cell.parent
+def is_within_range(ele, start, end):
+    return resides_within_range(ele, start, end)
 
-        # Find the bit_data cell in the same row
-        bit_data_cell = row.find('td', class_='bit_data')
-
-        if not bit_data_cell:
-            continue
-
-        # Extract the address data text
-        address_text = bit_data_cell.get_text().strip()
-        if "-" in address_text:
-            if key not in keys:
+def get_dependency_map_from_address_map(address_map):
+    dep_map = {}
+    for idx0, ele0 in enumerate(address_map):
+        dep_map[idx0] = []
+        for idx1, ele1 in enumerate(address_map):
+            if idx0 == idx1:
                 continue
+            if resides_within_range(ele0['START'], ele1['START'], ele1['END']) and resides_within_range(ele0['END'], ele1['START'], ele1['END']):
+                dep_map[idx0].append(idx1)
+
+    for idx, deps in dep_map.items():
+        if len(deps) > 1:
+            sorted_deps = sorted(deps, key=lambda x: address_map[x]['END'] - address_map[x]['START'], reverse = True)
+            dep_map[idx] = sorted_deps
+
+    return dep_map
+
+def parse_table0(table):
+    addr_map = []
+    table_entries = table.find_all('td', class_='data')
+    for cell in table_entries:
+        key = cell.get_text().strip()
+        row = cell.parent
+        bit_data_cell = row.find('td', class_='bit_data')
+        address_text = bit_data_cell.get_text().strip()
+
+        if "-" in address_text:
             match = re.match(r'(0x[0-9A-F]+)\s*-\s*(0x[0-9A-F]+)', address_text)
             if match:
                 start_addr = to_int(match.group(1))
                 end_addr = to_int(match.group(2))
-                assert key not in addrs, f"Duplicate entry found for {key} in the HTML table. row = {row}, cell = {cell}, bit_data_cell = {bit_data_cell}, prev entry: {addrs[key]}"
-                assert start_addr is not None, f"Start address is None for {key}"
-                assert end_addr is not None, f"End address is None for {key}"
-                assert start_addr < end_addr, f"Start address {start_addr} is not less than end address {end_addr} for {key}"
-                addrs[key] = {"START": start_addr, "END": end_addr}
+                addr_map.append({"KEY": key, "START": start_addr, "END": end_addr})
         else:
+            raise Exception(f"Address format not recognized: {address_text} for key {key}")
+
+    if not addr_map:
+        raise ValueError("No valid address ranges found in the HTML table.")
+
+    dep_map = get_dependency_map_from_address_map(addr_map)
+    new_addr_map = copy.deepcopy(addr_map)
+    for idx, map in enumerate(addr_map):
+        if map['KEY'].startswith('...'):
+            assert dep_map[idx], f"Could not find dependencies for key {map['KEY']}"
+            prefix = ".".join([addr_map[dep]['KEY'].strip().lstrip('.').strip() for dep in dep_map[idx]])
+            new_addr_map[idx]['KEY'] = prefix + "." + map['KEY'].strip().lstrip('.').strip()
+
+    new_addr_map.sort(key=lambda x: x['START'])
+    new_addr_map_dict = {ele['KEY']: ele for ele in new_addr_map}
+    assert len(new_addr_map_dict) == len(new_addr_map), "Duplicate keys found in the new map."
+    return new_addr_map_dict
+
+def add_register_to_address_map(register_name, register_address, address_map):
+    possible_regions = [(key, value['END'] - value['START']) for key, value in address_map.items() if is_within_range(register_address, value['START'], value['END'])]
+    if not possible_regions:
+        raise ValueError(f"No address range found for register {register_name} with address {register_address}. Possible matches: {possible_regions}")
+    min_size = min(size for _, size in possible_regions)
+    smallest_region = [key for key, size in possible_regions if size == min_size]
+    if len(smallest_region) > 1:
+        raise ValueError(f"Multiple address ranges found for register {register_name} with address {register_address}. Possible matches: {possible_regions}. Smallest regions: {smallest_region}")
+    smallest_region = smallest_region[0]
+    if 'REGISTERS' not in address_map[smallest_region]:
+        address_map[smallest_region]['REGISTERS'] = dict()
+
+    if register_name in address_map[smallest_region]['REGISTERS']:
+        raise ValueError(f"Duplicate register name '{register_name}' found in address range {smallest_region}. Previous address: {hex(address_map[smallest_region]['REGISTERS'][register_name])}, New address: {hex(register_address)}")
+
+    address_map[smallest_region]['REGISTERS'][register_name] = register_address
+
+def add_registers_to_address_map(regs, address_map):
+    for name, address in regs.items():
+        add_register_to_address_map(name, address, address_map)
+
+def parse_registers_from_table(table, address_map):
+    table_entries = table.find_all('td', class_='data')
+    for cell in table_entries:
+        key = cell.get_text().strip()
+        row = cell.parent
+        bit_data_cell = row.find('td', class_='bit_data')
+        address_text = bit_data_cell.get_text().strip()
+
+        if "-" not in address_text:
             match = re.match(r'(0x[0-9A-Fa-f]+)', address_text)
             if match:
                 address = to_int(match.group(1))
-                regs[key] = address
-        
-    for name, address in regs.items():
-        found_match = False
-        for key, value in addrs.items():
-            if (address >= value['START']) and (address <= value['END']):
-                if 'REGISTERS' not in value:
-                    value['REGISTERS'] = {}
-                if name in value['REGISTERS']:
-                    raise ValueError(f"Duplicate register name '{name}' found in address range {key}. Previous address: {value['REGISTERS'][name]}, New address: {address}")
-                value['REGISTERS'][name] = address
-                found_match = True
-                break
-        if not found_match:
-            print(f"No match found for register {name} with address {address}")
+                add_register_to_address_map(key, address, address_map)
 
-    return addrs
+def parse_soup(soup):
+    tbls = soup.find_all('table')
+    print(f"Found {len(tbls)} tables in the HTML file.")
+    if not tbls:
+        raise ValueError("No data cells found in the HTML table.")
 
-def get_addresses_from_html_file(file_name, address_fields):
+    tbl0_addr_map = parse_table0(tbls[0])
+    print("Parsed address map from HTML table.")
+
+    if len(tbls) <= 1:
+        return tbl0_addr_map
+
+    for idx, tbl in enumerate(tbls[1:]):
+        if not tbl:
+            continue
+        print(f"Processing table {idx} with {len(tbl)} entries.")
+        parse_registers_from_table(tbl, tbl0_addr_map)
+
+    for value in tbl0_addr_map.values():
+        if 'REGISTERS' in value.keys():
+            value['REGISTERS'] = dict(sorted(value['REGISTERS'].items(), key=lambda item: item[1]))
+
+    print("Finished parsing all tables.")
+    return tbl0_addr_map
+
+def get_addresses_from_html_file(file_name):
     if not os.path.exists(file_name):
         raise FileNotFoundError(f"HTML file '{file_name}' does not exist.")
-    
+
     soup = parse_html_file(file_name)
-    addrs = parse_soup(soup, keys = address_fields)
+    addrs = parse_soup(soup)
 
     return addrs
 
-def get_addresses_from_html_files(file_names, address_fields):
+def get_addresses_from_html_files(file_names):
     if not file_names:
         raise ValueError("No file_names provided to get addresses from.")
-    
-    if file_names is str:
+
+    if isinstance(file_names, str):
         file_names = [file_names]
 
     if not isinstance(file_names, list):
         raise TypeError("Files should be a list of file paths or a single file path as a string.")
-    
+
     if not file_names:
         raise ValueError("No file_names found in the provided path.")
-    
+
     if not os.path.exists(file_names[0]):
         raise FileNotFoundError(f"File '{file_names[0]}' does not exist.")
 
-    addrs0 = get_addresses_from_html_file(file_names[0], address_fields = address_fields)
+    addrs0 = get_addresses_from_html_file(file_names[0])
     if not addrs0:
-        raise ValueError(f"No addresses found in the file: {file_names[0]}") 
+        raise ValueError(f"No addresses found in the file: {file_names[0]}")
 
     if len(file_names) > 1:
         for file in file_names[1:]:
             if not os.path.exists(file):
                 raise FileNotFoundError(f"File '{file}' does not exist.")
 
-            addrs = get_addresses_from_html_file(file, address_fields = address_fields)
+            addrs = get_addresses_from_html_file(file)
             if addrs != addrs0:
                 msg = f"Warning: Addresses in {file} differ from the first file {file_names[0]}."
-                if address_fields:
-                    msg += f" Address fields: {address_fields}"
                 raise Exception(msg)
-            
+
     return addrs0
 
 def get_cfg_defines_from_file(file_path):
@@ -179,7 +233,7 @@ def get_cfg_defines(path='.'):
     if not file_paths:
         print("No cfg_defines.h files found.")
         return {}
-    
+
     cfg_defines0 = get_cfg_defines_from_file(file_paths[0])
     if len(file_paths) > 1:
         for file in file_paths[1:]:
@@ -234,32 +288,10 @@ def identify_missing_addresses_in_cfg_defines(path):
 
 def get_trisc_address_map(path):
     html_file = "TriscAddressMap.html"
-    address_fields = [
-        'cfg_regs', 
-        'dest_regs', 
-        'global_regs', 
-        'gprs', 
-        'ibuffer', 
-        'l1', 
-        'local_regs', 
-        'mop_cfg', 
-        'overlay_regs', 
-        'pcbuffer', 
-        'tile_counters', 
-        'trisc_mailbox[0]', 
-        'trisc_mailbox[1]', 
-        'trisc_mailbox[2]', 
-        'trisc_mailbox[3]', 
-        'unpacker_arg_mailbox[0]', 
-        'unpacker_arg_mailbox[1]', 
-        'unpacker_arg_mailbox[2]', 
-    ]
-
     files_incl_path = get_files_from_path(path, name = html_file)
-    addrs = get_addresses_from_html_files(
-        files_incl_path, 
-        address_fields = address_fields)
-    
+    print(f"Found {len(files_incl_path)} TriscAddressMap.html files in the path: {path}")
+    addrs = get_addresses_from_html_files(files_incl_path)
+
     cfg_offsets = get_one_register_name_per_address_from_cfg_defines(path)
     addrs['cfg_regs']['OFFSETS'] = cfg_offsets
 
@@ -279,7 +311,7 @@ def add_num_bytes_per_registers(mem_map, num_bytes_per_register):
             value['NUM_BYTES_PER_REGISTER'] = num_bytes_per_register
 
     return mem_map
-            
+
 def get_trisc_address_map_incl_reg_size(path, num_bytes_per_register):
     addrs = get_trisc_address_map(path)
     add_num_bytes_per_registers(addrs, num_bytes_per_register)
@@ -288,20 +320,6 @@ def get_trisc_address_map_incl_reg_size(path, num_bytes_per_register):
 
 def get_cluster_map(path, num_bytes_per_register):
     html_file = "NocAddressMap.html"
-    n1_cluster_keys = [
-        'neo_regs[0]',
-        'tensix_global_regs',
-        'tensix_l1',
-    ]
-
-    n4_cluster_keys = [
-        'neo_regs[0]',
-        'neo_regs[1]',
-        'neo_regs[2]',
-        'neo_regs[3]',
-        'tensix_global_regs'
-        'tensix_l1',
-    ]
 
     files_incl_path  = get_files_from_path(path, name = html_file)
     n1_cluster_files = [file for file in files_incl_path if "n1" in file]
@@ -309,8 +327,8 @@ def get_cluster_map(path, num_bytes_per_register):
     assert sorted(n1_cluster_files + n4_cluster_files) == sorted(files_incl_path)
 
     addrs = dict()
-    addrs['n1_cluster_map'] = add_num_bytes_per_registers(get_addresses_from_html_files(n1_cluster_files, n1_cluster_keys), num_bytes_per_register)
-    addrs['n4_cluster_map'] = add_num_bytes_per_registers(get_addresses_from_html_files(n4_cluster_files, n4_cluster_keys), num_bytes_per_register)
+    addrs['n1_cluster_map'] = add_num_bytes_per_registers(get_addresses_from_html_files(n1_cluster_files), num_bytes_per_register)
+    addrs['n4_cluster_map'] = add_num_bytes_per_registers(get_addresses_from_html_files(n4_cluster_files), num_bytes_per_register)
 
     return addrs
 
