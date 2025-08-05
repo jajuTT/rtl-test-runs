@@ -1,9 +1,155 @@
 #!/usr/bin/env python
 
-from fileinput import filename
-import os
-import sys
+import bs4
 import json
+import os
+import re
+import sys
+import copy
+
+def to_int(value):
+    if isinstance(value, int):
+        return value
+    elif isinstance(value, str):
+        if value.startswith('0x') or value.startswith('0X'):
+            return int(value, 16)
+        
+        if value.startswith('0b') or value.startswith('0B'):
+            return int(value, 2)
+        
+        if value.startswith('0o') or value.startswith('0O'):
+            return int(value, 8)
+        
+        if value.isdigit():
+            return int(value)
+        
+        raise ValueError(f"Invalid string for conversion to int: {value}")
+
+    raise ValueError(f"Unsupported type for conversion: {type(value)}")
+
+def get_files_from_path(path, name=None, extension=None):
+    files = []
+    for root, _, filenames in os.walk(path):
+        for file in filenames:
+            if extension is None or file.endswith(extension):
+                if name is None or name in file:
+                    files.append(os.path.join(root, file))
+    return sorted(files)
+
+def parse_html_file(file_name):
+    if not os.path.exists(file_name):
+        raise FileNotFoundError(f"HTML file '{file_name}' does not exist.")
+    
+    with open(file_name, 'r') as f:
+        content = f.read()
+    
+    soup = bs4.BeautifulSoup(content, 'html.parser')
+    return soup 
+
+def parse_soup(soup, keys = None):
+    table = soup.find('table')
+    if not table:
+        raise ValueError("No table found in the HTML file.")
+    
+    data_cells = soup.find_all('td', class_='data')
+    if not data_cells:
+        raise ValueError("No data cells found in the table.")
+    
+    # data = []
+    addrs = dict()
+    regs = dict()
+    for cell in data_cells:
+        key = cell.get_text().strip()
+        if not key:
+            continue
+
+        # Get the parent row
+        row = cell.parent
+
+        # Find the bit_data cell in the same row
+        bit_data_cell = row.find('td', class_='bit_data')
+
+        if not bit_data_cell:
+            continue
+
+        # Extract the address data text
+        address_text = bit_data_cell.get_text().strip()
+        if "-" in address_text:
+            if key not in keys:
+                continue
+            match = re.match(r'(0x[0-9A-F]+)\s*-\s*(0x[0-9A-F]+)', address_text)
+            if match:
+                start_addr = to_int(match.group(1))
+                end_addr = to_int(match.group(2))
+                assert key not in addrs, f"Duplicate entry found for {key} in the HTML table. row = {row}, cell = {cell}, bit_data_cell = {bit_data_cell}, prev entry: {addrs[key]}"
+                assert start_addr is not None, f"Start address is None for {key}"
+                assert end_addr is not None, f"End address is None for {key}"
+                assert start_addr < end_addr, f"Start address {start_addr} is not less than end address {end_addr} for {key}"
+                addrs[key] = {"START": start_addr, "END": end_addr}
+        else:
+            match = re.match(r'(0x[0-9A-Fa-f]+)', address_text)
+            if match:
+                address = to_int(match.group(1))
+                regs[key] = address
+        
+    for name, address in regs.items():
+        found_match = False
+        for key, value in addrs.items():
+            if (address >= value['START']) and (address <= value['END']):
+                if 'REGISTERS' not in value:
+                    value['REGISTERS'] = {}
+                if name in value['REGISTERS']:
+                    raise ValueError(f"Duplicate register name '{name}' found in address range {key}. Previous address: {value['REGISTERS'][name]}, New address: {address}")
+                value['REGISTERS'][name] = address
+                found_match = True
+                break
+        if not found_match:
+            print(f"No match found for register {name} with address {address}")
+
+    return addrs
+
+def get_addresses_from_html_file(file_name, address_fields):
+    if not os.path.exists(file_name):
+        raise FileNotFoundError(f"HTML file '{file_name}' does not exist.")
+    
+    soup = parse_html_file(file_name)
+    addrs = parse_soup(soup, keys = address_fields)
+
+    return addrs
+
+def get_addresses_from_html_files(file_names, address_fields):
+    if not file_names:
+        raise ValueError("No file_names provided to get addresses from.")
+    
+    if file_names is str:
+        file_names = [file_names]
+
+    if not isinstance(file_names, list):
+        raise TypeError("Files should be a list of file paths or a single file path as a string.")
+    
+    if not file_names:
+        raise ValueError("No file_names found in the provided path.")
+    
+    if not os.path.exists(file_names[0]):
+        raise FileNotFoundError(f"File '{file_names[0]}' does not exist.")
+
+    addrs0 = get_addresses_from_html_file(file_names[0], address_fields = address_fields)
+    if not addrs0:
+        raise ValueError(f"No addresses found in the file: {file_names[0]}") 
+
+    if len(file_names) > 1:
+        for file in file_names[1:]:
+            if not os.path.exists(file):
+                raise FileNotFoundError(f"File '{file}' does not exist.")
+
+            addrs = get_addresses_from_html_file(file, address_fields = address_fields)
+            if addrs != addrs0:
+                msg = f"Warning: Addresses in {file} differ from the first file {file_names[0]}."
+                if address_fields:
+                    msg += f" Address fields: {address_fields}"
+                raise Exception(msg)
+            
+    return addrs0
 
 def get_cfg_defines_from_file(file_path):
     cfg_defines = dict()
@@ -17,17 +163,19 @@ def get_cfg_defines_from_file(file_path):
                     cfg_defines[key] = value
     return cfg_defines
 
-def get_cfg_defines_file_path():
+def get_cfg_defines_file_path(path):
     cfg_defines_file = "cfg_defines.h"
     file_paths = []
-    for pwd, _, files in os.walk('.'):
+    for pwd, _, files in os.walk(path):
         for file in files:
             if "cfg_defines.h" == file:
                 file_paths.append(os.path.join(pwd, file))
+    print(f"Found {len(file_paths)} cfg_defines.h files.")
+    print("Paths:", file_paths)
     return sorted(file_paths)
 
-def get_cfg_defines():
-    file_paths = get_cfg_defines_file_path()
+def get_cfg_defines(path='.'):
+    file_paths = get_cfg_defines_file_path(path)
     if not file_paths:
         print("No cfg_defines.h files found.")
         return {}
@@ -36,20 +184,19 @@ def get_cfg_defines():
     if len(file_paths) > 1:
         for file in file_paths[1:]:
             cfg_defines = get_cfg_defines_from_file(file)
-            if cfg_defines != cfg_defines0:
-                print(f"Warning: Multiple cfg_defines.h files found with different contents: {file_paths}")
+            assert cfg_defines == cfg_defines0, f"Warning: Multiple cfg_defines.h files found with different contents: {file_paths}"
     return cfg_defines0
 
-def get_registers_addresses_from_cfg_defines():
-    cfg_defines = get_cfg_defines()
+def get_registers_addresses_from_cfg_defines(path):
+    cfg_defines = get_cfg_defines(path)
     registers = dict()
     for key, value in cfg_defines.items():
         if key.endswith('ADDR32'):
             registers[key] = int(value)
     return registers
 
-def get_addresses_registers_from_cfg_defines():
-    regs_addrs = get_registers_addresses_from_cfg_defines()
+def get_addresses_registers_from_cfg_defines(path):
+    regs_addrs = get_registers_addresses_from_cfg_defines(path)
     addrs_regs = {value : [] for value in sorted(set(regs_addrs.values()))}
     for addr in addrs_regs.keys():
         for key, value in regs_addrs.items():
@@ -61,20 +208,20 @@ def get_addresses_registers_from_cfg_defines():
 
     return addrs_regs
 
-def get_one_register_name_per_address_from_cfg_defines():
-    addrs_regs = get_addresses_registers_from_cfg_defines()
+def get_one_register_name_per_address_from_cfg_defines(path):
+    addrs_regs = get_addresses_registers_from_cfg_defines(path)
     one_reg_per_addr = {regs[0] : addr for addr, regs in addrs_regs.items() if regs}
     assert len(one_reg_per_addr) == len(addrs_regs), "Not all addresses have a single register associated with them."
     return one_reg_per_addr
 
-def write_registers_addresses_to_file(filename):
-    regs_addrs = get_one_register_name_per_address_from_cfg_defines()
+def write_registers_addresses_to_file(path, filename):
+    regs_addrs = get_one_register_name_per_address_from_cfg_defines(path)
     dict_to_write = {"CFG_REGISTER_OFFSETS" : regs_addrs}
     with open(filename, 'w') as f:
         json.dump(dict_to_write, f, indent = 2)
 
-def identify_missing_addresses_in_cfg_defines():
-    addrs_regs = get_addresses_registers_from_cfg_defines()
+def identify_missing_addresses_in_cfg_defines(path):
+    addrs_regs = get_addresses_registers_from_cfg_defines(path)
     min_addr = min(addrs_regs.keys())
     max_addr = max(addrs_regs.keys())
     print("+ CFG registers addresses range:", min_addr, "to", max_addr)
@@ -85,14 +232,114 @@ def identify_missing_addresses_in_cfg_defines():
     else:
         print("  - No missing addresses found in cfg_defines.")
 
-if "__main__" == __name__:
-    write_registers_addresses_to_file("cfg_register_offsets.json")
-    identify_missing_addresses_in_cfg_defines()
-    # regs_addrs = get_registers_addresses_from_cfg_defines()
-    # print(len(regs_addrs), "registers found with ADDR32")
-    # for key, value in regs_addrs.items():
-    #     print(f"{key}: {value}")
+def get_trisc_address_map(path):
+    html_file = "TriscAddressMap.html"
+    address_fields = [
+        'cfg_regs', 
+        'dest_regs', 
+        'global_regs', 
+        'gprs', 
+        'ibuffer', 
+        'l1', 
+        'local_regs', 
+        'mop_cfg', 
+        'overlay_regs', 
+        'pcbuffer', 
+        'tile_counters', 
+        'trisc_mailbox[0]', 
+        'trisc_mailbox[1]', 
+        'trisc_mailbox[2]', 
+        'trisc_mailbox[3]', 
+        'unpacker_arg_mailbox[0]', 
+        'unpacker_arg_mailbox[1]', 
+        'unpacker_arg_mailbox[2]', 
+    ]
 
-    # addrs_regs = get_addresses_registers_from_cfg_defines()
-    # for key, value in addrs_regs.items():
-    #     print(f"{key}: {value}")
+    files_incl_path = get_files_from_path(path, name = html_file)
+    addrs = get_addresses_from_html_files(
+        files_incl_path, 
+        address_fields = address_fields)
+    
+    cfg_offsets = get_one_register_name_per_address_from_cfg_defines(path)
+    addrs['cfg_regs']['OFFSETS'] = cfg_offsets
+
+    return addrs
+
+def add_num_bytes_per_registers(mem_map, num_bytes_per_register):
+    for key, value in mem_map.items():
+        if 'START' in value and 'END' in value:
+            start = value['START']
+            end = value['END']
+            if start % num_bytes_per_register != 0 or (end + 1) % num_bytes_per_register != 0:
+                raise ValueError(f"Start or end address for {key} is not aligned to {num_bytes_per_register} bytes: {start}, {end}")
+            if 'REGISTERS' in value:
+                for reg_name, reg_addr in value['REGISTERS'].items():
+                    if reg_addr % num_bytes_per_register != 0:
+                        raise ValueError(f"Register address {reg_addr} for {reg_name} in {key} is not aligned to {num_bytes_per_register} bytes.")
+            value['NUM_BYTES_PER_REGISTER'] = num_bytes_per_register
+
+    return mem_map
+            
+def get_trisc_address_map_incl_reg_size(path, num_bytes_per_register):
+    addrs = get_trisc_address_map(path)
+    add_num_bytes_per_registers(addrs, num_bytes_per_register)
+
+    return addrs
+
+def get_cluster_map(path, num_bytes_per_register):
+    html_file = "NocAddressMap.html"
+    n1_cluster_keys = [
+        'neo_regs[0]',
+        'tensix_global_regs',
+        'tensix_l1',
+    ]
+
+    n4_cluster_keys = [
+        'neo_regs[0]',
+        'neo_regs[1]',
+        'neo_regs[2]',
+        'neo_regs[3]',
+        'tensix_global_regs'
+        'tensix_l1',
+    ]
+
+    files_incl_path  = get_files_from_path(path, name = html_file)
+    n1_cluster_files = [file for file in files_incl_path if "n1" in file]
+    n4_cluster_files = [file for file in files_incl_path if "n4" in file]
+    assert sorted(n1_cluster_files + n4_cluster_files) == sorted(files_incl_path)
+
+    addrs = dict()
+    addrs['n1_cluster_map'] = add_num_bytes_per_registers(get_addresses_from_html_files(n1_cluster_files, n1_cluster_keys), num_bytes_per_register)
+    addrs['n4_cluster_map'] = add_num_bytes_per_registers(get_addresses_from_html_files(n4_cluster_files, n4_cluster_keys), num_bytes_per_register)
+
+    return addrs
+
+def get_memory_map(path, num_bytes_per_register):
+    mem_map = dict()
+    mem_map['trisc_map'] = get_trisc_address_map_incl_reg_size(path, num_bytes_per_register)
+    cluster_map = get_cluster_map(path, num_bytes_per_register)
+    for key, value in cluster_map.items():
+        mem_map[key] = value
+
+    return mem_map
+
+def change_addresses_to_hex(mem_map):
+    for key0, value0 in mem_map.items():
+        for key1, value1 in value0.items():
+            for key2, value2 in value1.items():
+                if key2 in ['START', 'END']:
+                    mem_map[key0][key1][key2] = hex(value2)
+                if key2 == "REGISTERS":
+                    for key3, value3 in value2.items():
+                        mem_map[key0][key1][key2][key3] = hex(value3)
+
+    return mem_map
+
+def write_memory_map(path, num_bytes_per_register, file_to_write):
+    mem_map = get_memory_map(path, num_bytes_per_register)
+    mem_map = change_addresses_to_hex(mem_map)
+    with open(file_to_write, 'w') as f:
+        json.dump(mem_map, f, indent = 2)
+
+if "__main__" == __name__:
+    write_memory_map(sys.argv[1], 4, "memory_map.json")

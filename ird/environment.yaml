@@ -3,6 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - python
+  - bs4
   - coverage
   - deepdiff
   - fabric
@@ -23,7 +24,6 @@ dependencies:
   - pytest-cov
   - pytest-mock
   - pytest-xdist
-  - pytest-xdist
   - pyyaml
   - ruff
   - simpy
@@ -32,8 +32,8 @@ dependencies:
   - yaml
   - pip
   - pip:
-    - pytest
-    - types-PYYAML
-    - types-networkx
-    - types-requests
     - lxml-stubs
+    - pytest
+    - types-networkx
+    - types-PYYAML
+    - types-requests
