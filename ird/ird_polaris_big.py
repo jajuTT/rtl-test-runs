@@ -314,6 +314,7 @@ if "__main__" == __name__:
     # path = "/proj_tensix/user_dev/sjaju/work/feb/19"
     # path = "/proj_tensix/user_dev/sjaju/work/mar/18"
     path = "/proj_tensix/user_dev/sjaju/work/july/01"
+    # path = "/proj_tensix/user_dev/sjaju/work/july/27"
     month_str = None
     day_str = None
     del month_str
@@ -323,6 +324,8 @@ if "__main__" == __name__:
     rtl_args["rtl_tag"] = "".join(rtl_args["remote_root_dir_path"].split(os.path.sep)[-2:])
     if "july01" == rtl_args["rtl_tag"]:
         rtl_args["rtl_tag"] = "jul1"
+    elif "july27" == rtl_args["rtl_tag"]:
+        rtl_args["rtl_tag"] = "jul27"
     rtl_args["local_root_dir"] = f"from-{rtl_args['remote_root_dir']}-{rtl_args['rtl_tag']}"
 
     rtl_utils.copy.safe_connection(host = rtl_args["ird_server"], user = rtl_args["username"], connect_kwargs = {"key_filename": rtl_args["ssh_key_file"]})
