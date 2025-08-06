@@ -96,8 +96,12 @@ def parse_table0(table):
     for idx, map in enumerate(addr_map):
         if map['KEY'].startswith('...'):
             assert dep_map[idx], f"Could not find dependencies for key {map['KEY']}"
-            prefix = ".".join([addr_map[dep]['KEY'].strip().lstrip('.').strip() for dep in dep_map[idx]])
+            new_addr_map[idx]['RESIDES_WITHIN'] = [addr_map[dep]['KEY'].strip().lstrip('.').strip() for dep in dep_map[idx]]
+            assert len(new_addr_map[idx]['RESIDES_WITHIN']) == len(dep_map[idx]), f"Not all dependencies found for key"
+            prefix = ".".join(new_addr_map[idx]['RESIDES_WITHIN'])
             new_addr_map[idx]['KEY'] = prefix + "." + map['KEY'].strip().lstrip('.').strip()
+        else:
+            new_addr_map[idx]['RESIDES_WITHIN'] = []
 
     new_addr_map.sort(key=lambda x: x['START'])
     new_addr_map_dict = {ele['KEY']: ele for ele in new_addr_map}

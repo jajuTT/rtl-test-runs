@@ -275,13 +275,13 @@ if "__main__" == __name__:
     rtl_args["suites"]    = "postcommit"
     rtl_args["tags"]      = None
     rtl_args["tests"]     = None
-    # rtl_args["yaml_files"] = {
-    #     "ttx-llk-sfpu.yml"  : {"suites" : "postcommit"},
-    #     "ttx-llk-fixed.yml" : {"suites" : "postcommit"}}
-
     rtl_args["yaml_files"] = {
-        "ttx-test-llk-sfpu.yml"  : {"suites" : "postcommit"},
-        "ttx-test-llk.yml"       : {"suites" : "postcommit"}}
+        "ttx-llk-sfpu.yml"  : {"suites" : "postcommit"},
+        "ttx-llk-fixed.yml" : {"suites" : "postcommit"}}
+
+    # rtl_args["yaml_files"] = {
+    #     "ttx-test-llk-sfpu.yml"  : {"suites" : "postcommit"},
+    #     "ttx-test-llk.yml"       : {"suites" : "postcommit"}}
 
     rtl_args["debug_dir_path"]           = "rsim"
     rtl_args["debug_dir"]                = "debug"
@@ -312,8 +312,8 @@ if "__main__" == __name__:
     # day_str   = f"{datetime.datetime.now().day:02d}"
     # path      = f"/proj_tensix/user_dev/sjaju/work/{month_str}/{day_str}"
     # path = "/proj_tensix/user_dev/sjaju/work/feb/19"
-    path = "/proj_tensix/user_dev/sjaju/work/mar/18"
-    # path = "/proj_tensix/user_dev/sjaju/work/july/01"
+    # path = "/proj_tensix/user_dev/sjaju/work/mar/18"
+    path = "/proj_tensix/user_dev/sjaju/work/july/01"
     month_str = None
     day_str = None
     del month_str

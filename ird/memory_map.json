@@ -4,18 +4,23 @@
       "KEY": "l1",
       "START": "0x0",
       "END": "0x7fffff",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "local_regs": {
       "KEY": "local_regs",
       "START": "0x800000",
       "END": "0x80a0e3",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "local_regs.debug_regs": {
       "KEY": "local_regs.debug_regs",
       "START": "0x800000",
       "END": "0x80039b",
+      "RESIDES_WITHIN": [
+        "local_regs"
+      ],
       "REGISTERS": {
         "PERF_CNT_INSTRN_THREAD0": "0x800000",
         "PERF_CNT_INSTRN_THREAD1": "0x800004",
@@ -213,36 +218,54 @@
       "KEY": "local_regs.pic_regs",
       "START": "0x800400",
       "END": "0x8007ff",
+      "RESIDES_WITHIN": [
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "local_regs.ldm[0]": {
       "KEY": "local_regs.ldm[0]",
       "START": "0x802000",
       "END": "0x803fff",
+      "RESIDES_WITHIN": [
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "local_regs.ldm[1]": {
       "KEY": "local_regs.ldm[1]",
       "START": "0x804000",
       "END": "0x805fff",
+      "RESIDES_WITHIN": [
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "local_regs.ldm[2]": {
       "KEY": "local_regs.ldm[2]",
       "START": "0x806000",
       "END": "0x807fff",
+      "RESIDES_WITHIN": [
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "local_regs.ldm[3]": {
       "KEY": "local_regs.ldm[3]",
       "START": "0x808000",
       "END": "0x809fff",
+      "RESIDES_WITHIN": [
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "local_regs.l1_client": {
       "KEY": "local_regs.l1_client",
       "START": "0x80a000",
       "END": "0x80a0e3",
+      "RESIDES_WITHIN": [
+        "local_regs"
+      ],
       "REGISTERS": {
         "GROUP_HASH_FN_CTRL": "0x80a000",
         "GROUP_HASH_FN0_MASK": "0x80a004",
@@ -308,84 +331,98 @@
       "KEY": "tile_counters",
       "START": "0x80b000",
       "END": "0x80bfff",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "gprs": {
       "KEY": "gprs",
       "START": "0x80c000",
       "END": "0x80cfff",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "mop_cfg": {
       "KEY": "mop_cfg",
       "START": "0x80d000",
       "END": "0x80d083",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "ibuffer": {
       "KEY": "ibuffer",
       "START": "0x80e000",
       "END": "0x80efff",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "pcbuffer": {
       "KEY": "pcbuffer",
       "START": "0x80f000",
       "END": "0x80ffff",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "trisc_mailbox[0]": {
       "KEY": "trisc_mailbox[0]",
       "START": "0x810000",
       "END": "0x8103ff",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "trisc_mailbox[1]": {
       "KEY": "trisc_mailbox[1]",
       "START": "0x810400",
       "END": "0x8107ff",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "trisc_mailbox[2]": {
       "KEY": "trisc_mailbox[2]",
       "START": "0x810800",
       "END": "0x810bff",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "trisc_mailbox[3]": {
       "KEY": "trisc_mailbox[3]",
       "START": "0x810c00",
       "END": "0x810fff",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "unpacker_arg_mailbox[0]": {
       "KEY": "unpacker_arg_mailbox[0]",
       "START": "0x811000",
       "END": "0x8113ff",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "unpacker_arg_mailbox[1]": {
       "KEY": "unpacker_arg_mailbox[1]",
       "START": "0x811400",
       "END": "0x8117ff",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "unpacker_arg_mailbox[2]": {
       "KEY": "unpacker_arg_mailbox[2]",
       "START": "0x811800",
       "END": "0x811bff",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "dest_regs": {
       "KEY": "dest_regs",
       "START": "0x818000",
       "END": "0x81ffff",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "cfg_regs": {
       "KEY": "cfg_regs",
       "START": "0x820000",
       "END": "0x820ddf",
+      "RESIDES_WITHIN": [],
       "OFFSETS": {
         "ALU_CFGREG_BASE_ADDR32": 0,
         "ALU_FORMAT_SPEC_REG0_SrcA_ADDR32": 1,
@@ -763,12 +800,19 @@
       "KEY": "cfg_regs.shadow_cfg_regs",
       "START": "0x820000",
       "END": "0x8205df",
+      "RESIDES_WITHIN": [
+        "cfg_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "cfg_regs.shadow_cfg_regs.alu": {
       "KEY": "cfg_regs.shadow_cfg_regs.alu",
       "START": "0x820000",
       "END": "0x82002f",
+      "RESIDES_WITHIN": [
+        "cfg_regs",
+        "shadow_cfg_regs"
+      ],
       "REGISTERS": {
         "REG0": "0x820000",
         "REG1": "0x820010",
@@ -780,6 +824,10 @@
       "KEY": "cfg_regs.shadow_cfg_regs.thcon",
       "START": "0x820030",
       "END": "0x82013f",
+      "RESIDES_WITHIN": [
+        "cfg_regs",
+        "shadow_cfg_regs"
+      ],
       "REGISTERS": {
         "UNPACKER0_REG0": "0x820030",
         "UNPACKER0_REG1": "0x820040",
@@ -805,6 +853,10 @@
       "KEY": "cfg_regs.shadow_cfg_regs.gbl",
       "START": "0x820140",
       "END": "0x8205df",
+      "RESIDES_WITHIN": [
+        "cfg_regs",
+        "shadow_cfg_regs"
+      ],
       "REGISTERS": {
         "PRNG_SEED": "0x820140",
         "PRNG_SEED_OVERRIDE_CTRL": "0x820148",
@@ -1011,12 +1063,19 @@
       "KEY": "cfg_regs.live_cfg_regs",
       "START": "0x820800",
       "END": "0x820ddf",
+      "RESIDES_WITHIN": [
+        "cfg_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "cfg_regs.live_cfg_regs.alu": {
       "KEY": "cfg_regs.live_cfg_regs.alu",
       "START": "0x820800",
       "END": "0x82082f",
+      "RESIDES_WITHIN": [
+        "cfg_regs",
+        "live_cfg_regs"
+      ],
       "REGISTERS": {
         "REG0": "0x820800",
         "REG1": "0x820810",
@@ -1028,6 +1087,10 @@
       "KEY": "cfg_regs.live_cfg_regs.thcon",
       "START": "0x820830",
       "END": "0x82093f",
+      "RESIDES_WITHIN": [
+        "cfg_regs",
+        "live_cfg_regs"
+      ],
       "REGISTERS": {
         "UNPACKER0_REG0": "0x820830",
         "UNPACKER0_REG1": "0x820840",
@@ -1053,6 +1116,10 @@
       "KEY": "cfg_regs.live_cfg_regs.gbl",
       "START": "0x820940",
       "END": "0x820ddf",
+      "RESIDES_WITHIN": [
+        "cfg_regs",
+        "live_cfg_regs"
+      ],
       "REGISTERS": {
         "PRNG_SEED": "0x820940",
         "PRNG_SEED_OVERRIDE_CTRL": "0x820948",
@@ -1259,12 +1326,16 @@
       "KEY": "global_regs",
       "START": "0x1840000",
       "END": "0x18410ff",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "global_regs.semaphore_regs": {
       "KEY": "global_regs.semaphore_regs",
       "START": "0x1840000",
       "END": "0x18407ff",
+      "RESIDES_WITHIN": [
+        "global_regs"
+      ],
       "REGISTERS": {
         "SEMAPHORE[0]": "0x1840000",
         "SEMAPHORE[1]": "0x1840040",
@@ -1305,6 +1376,9 @@
       "KEY": "global_regs.edc_regs",
       "START": "0x1841000",
       "END": "0x184103f",
+      "RESIDES_WITHIN": [
+        "global_regs"
+      ],
       "REGISTERS": {
         "ID": "0x1841000",
         "STAT": "0x1841004",
@@ -1329,6 +1403,9 @@
       "KEY": "global_regs.gsrs_regs",
       "START": "0x1841080",
       "END": "0x18410ff",
+      "RESIDES_WITHIN": [
+        "global_regs"
+      ],
       "REGISTERS": {
         "REG[0]": "0x1841080",
         "REG[1]": "0x1841084",
@@ -1369,6 +1446,7 @@
       "KEY": "overlay_regs",
       "START": "0x2000000",
       "END": "0x3ffffff",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     }
   },
@@ -1377,24 +1455,33 @@
       "KEY": "tensix_l1",
       "START": "0x0",
       "END": "0x7fffff",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[0]": {
       "KEY": "neo_regs[0]",
       "START": "0x1800000",
       "END": "0x180a0e3",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[0].local_regs": {
       "KEY": "neo_regs[0].local_regs",
       "START": "0x1800000",
       "END": "0x180a0e3",
+      "RESIDES_WITHIN": [
+        "neo_regs[0]"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[0].local_regs.debug_regs": {
       "KEY": "neo_regs[0].local_regs.debug_regs",
       "START": "0x1800000",
       "END": "0x180039b",
+      "RESIDES_WITHIN": [
+        "neo_regs[0]",
+        "local_regs"
+      ],
       "REGISTERS": {
         "PERF_CNT_INSTRN_THREAD0": "0x1800000",
         "PERF_CNT_INSTRN_THREAD1": "0x1800004",
@@ -1592,36 +1679,60 @@
       "KEY": "neo_regs[0].local_regs.pic_regs",
       "START": "0x1800400",
       "END": "0x18007ff",
+      "RESIDES_WITHIN": [
+        "neo_regs[0]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[0].local_regs.ldm[0]": {
       "KEY": "neo_regs[0].local_regs.ldm[0]",
       "START": "0x1802000",
       "END": "0x1803fff",
+      "RESIDES_WITHIN": [
+        "neo_regs[0]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[0].local_regs.ldm[1]": {
       "KEY": "neo_regs[0].local_regs.ldm[1]",
       "START": "0x1804000",
       "END": "0x1805fff",
+      "RESIDES_WITHIN": [
+        "neo_regs[0]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[0].local_regs.ldm[2]": {
       "KEY": "neo_regs[0].local_regs.ldm[2]",
       "START": "0x1806000",
       "END": "0x1807fff",
+      "RESIDES_WITHIN": [
+        "neo_regs[0]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[0].local_regs.ldm[3]": {
       "KEY": "neo_regs[0].local_regs.ldm[3]",
       "START": "0x1808000",
       "END": "0x1809fff",
+      "RESIDES_WITHIN": [
+        "neo_regs[0]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[0].local_regs.l1_client": {
       "KEY": "neo_regs[0].local_regs.l1_client",
       "START": "0x180a000",
       "END": "0x180a0e3",
+      "RESIDES_WITHIN": [
+        "neo_regs[0]",
+        "local_regs"
+      ],
       "REGISTERS": {
         "GROUP_HASH_FN_CTRL": "0x180a000",
         "GROUP_HASH_FN0_MASK": "0x180a004",
@@ -1687,12 +1798,16 @@
       "KEY": "tensix_global_regs",
       "START": "0x1840000",
       "END": "0x18410ff",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "tensix_global_regs.semaphore_regs": {
       "KEY": "tensix_global_regs.semaphore_regs",
       "START": "0x1840000",
       "END": "0x18407ff",
+      "RESIDES_WITHIN": [
+        "tensix_global_regs"
+      ],
       "REGISTERS": {
         "SEMAPHORE[0]": "0x1840000",
         "SEMAPHORE[1]": "0x1840040",
@@ -1733,6 +1848,9 @@
       "KEY": "tensix_global_regs.edc_regs",
       "START": "0x1841000",
       "END": "0x184103f",
+      "RESIDES_WITHIN": [
+        "tensix_global_regs"
+      ],
       "REGISTERS": {
         "ID": "0x1841000",
         "STAT": "0x1841004",
@@ -1757,6 +1875,9 @@
       "KEY": "tensix_global_regs.gsrs_regs",
       "START": "0x1841080",
       "END": "0x18410ff",
+      "RESIDES_WITHIN": [
+        "tensix_global_regs"
+      ],
       "REGISTERS": {
         "REG[0]": "0x1841080",
         "REG[1]": "0x1841084",
@@ -1797,6 +1918,7 @@
       "KEY": "noc_overlay_regs",
       "START": "0x2000000",
       "END": "0x3ffffff",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     }
   },
@@ -1805,24 +1927,33 @@
       "KEY": "tensix_l1",
       "START": "0x0",
       "END": "0x7fffff",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[0]": {
       "KEY": "neo_regs[0]",
       "START": "0x1800000",
       "END": "0x180a0e3",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[0].local_regs": {
       "KEY": "neo_regs[0].local_regs",
       "START": "0x1800000",
       "END": "0x180a0e3",
+      "RESIDES_WITHIN": [
+        "neo_regs[0]"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[0].local_regs.debug_regs": {
       "KEY": "neo_regs[0].local_regs.debug_regs",
       "START": "0x1800000",
       "END": "0x180039b",
+      "RESIDES_WITHIN": [
+        "neo_regs[0]",
+        "local_regs"
+      ],
       "REGISTERS": {
         "PERF_CNT_INSTRN_THREAD0": "0x1800000",
         "PERF_CNT_INSTRN_THREAD1": "0x1800004",
@@ -2020,36 +2151,60 @@
       "KEY": "neo_regs[0].local_regs.pic_regs",
       "START": "0x1800400",
       "END": "0x18007ff",
+      "RESIDES_WITHIN": [
+        "neo_regs[0]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[0].local_regs.ldm[0]": {
       "KEY": "neo_regs[0].local_regs.ldm[0]",
       "START": "0x1802000",
       "END": "0x1803fff",
+      "RESIDES_WITHIN": [
+        "neo_regs[0]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[0].local_regs.ldm[1]": {
       "KEY": "neo_regs[0].local_regs.ldm[1]",
       "START": "0x1804000",
       "END": "0x1805fff",
+      "RESIDES_WITHIN": [
+        "neo_regs[0]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[0].local_regs.ldm[2]": {
       "KEY": "neo_regs[0].local_regs.ldm[2]",
       "START": "0x1806000",
       "END": "0x1807fff",
+      "RESIDES_WITHIN": [
+        "neo_regs[0]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[0].local_regs.ldm[3]": {
       "KEY": "neo_regs[0].local_regs.ldm[3]",
       "START": "0x1808000",
       "END": "0x1809fff",
+      "RESIDES_WITHIN": [
+        "neo_regs[0]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[0].local_regs.l1_client": {
       "KEY": "neo_regs[0].local_regs.l1_client",
       "START": "0x180a000",
       "END": "0x180a0e3",
+      "RESIDES_WITHIN": [
+        "neo_regs[0]",
+        "local_regs"
+      ],
       "REGISTERS": {
         "GROUP_HASH_FN_CTRL": "0x180a000",
         "GROUP_HASH_FN0_MASK": "0x180a004",
@@ -2115,18 +2270,26 @@
       "KEY": "neo_regs[1]",
       "START": "0x1810000",
       "END": "0x181a0e3",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[1].local_regs": {
       "KEY": "neo_regs[1].local_regs",
       "START": "0x1810000",
       "END": "0x181a0e3",
+      "RESIDES_WITHIN": [
+        "neo_regs[1]"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[1].local_regs.debug_regs": {
       "KEY": "neo_regs[1].local_regs.debug_regs",
       "START": "0x1810000",
       "END": "0x181039b",
+      "RESIDES_WITHIN": [
+        "neo_regs[1]",
+        "local_regs"
+      ],
       "REGISTERS": {
         "PERF_CNT_INSTRN_THREAD0": "0x1810000",
         "PERF_CNT_INSTRN_THREAD1": "0x1810004",
@@ -2324,36 +2487,60 @@
       "KEY": "neo_regs[1].local_regs.pic_regs",
       "START": "0x1810400",
       "END": "0x18107ff",
+      "RESIDES_WITHIN": [
+        "neo_regs[1]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[1].local_regs.ldm[0]": {
       "KEY": "neo_regs[1].local_regs.ldm[0]",
       "START": "0x1812000",
       "END": "0x1813fff",
+      "RESIDES_WITHIN": [
+        "neo_regs[1]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[1].local_regs.ldm[1]": {
       "KEY": "neo_regs[1].local_regs.ldm[1]",
       "START": "0x1814000",
       "END": "0x1815fff",
+      "RESIDES_WITHIN": [
+        "neo_regs[1]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[1].local_regs.ldm[2]": {
       "KEY": "neo_regs[1].local_regs.ldm[2]",
       "START": "0x1816000",
       "END": "0x1817fff",
+      "RESIDES_WITHIN": [
+        "neo_regs[1]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[1].local_regs.ldm[3]": {
       "KEY": "neo_regs[1].local_regs.ldm[3]",
       "START": "0x1818000",
       "END": "0x1819fff",
+      "RESIDES_WITHIN": [
+        "neo_regs[1]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[1].local_regs.l1_client": {
       "KEY": "neo_regs[1].local_regs.l1_client",
       "START": "0x181a000",
       "END": "0x181a0e3",
+      "RESIDES_WITHIN": [
+        "neo_regs[1]",
+        "local_regs"
+      ],
       "REGISTERS": {
         "GROUP_HASH_FN_CTRL": "0x181a000",
         "GROUP_HASH_FN0_MASK": "0x181a004",
@@ -2419,18 +2606,26 @@
       "KEY": "neo_regs[2]",
       "START": "0x1820000",
       "END": "0x182a0e3",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[2].local_regs": {
       "KEY": "neo_regs[2].local_regs",
       "START": "0x1820000",
       "END": "0x182a0e3",
+      "RESIDES_WITHIN": [
+        "neo_regs[2]"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[2].local_regs.debug_regs": {
       "KEY": "neo_regs[2].local_regs.debug_regs",
       "START": "0x1820000",
       "END": "0x182039b",
+      "RESIDES_WITHIN": [
+        "neo_regs[2]",
+        "local_regs"
+      ],
       "REGISTERS": {
         "PERF_CNT_INSTRN_THREAD0": "0x1820000",
         "PERF_CNT_INSTRN_THREAD1": "0x1820004",
@@ -2628,36 +2823,60 @@
       "KEY": "neo_regs[2].local_regs.pic_regs",
       "START": "0x1820400",
       "END": "0x18207ff",
+      "RESIDES_WITHIN": [
+        "neo_regs[2]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[2].local_regs.ldm[0]": {
       "KEY": "neo_regs[2].local_regs.ldm[0]",
       "START": "0x1822000",
       "END": "0x1823fff",
+      "RESIDES_WITHIN": [
+        "neo_regs[2]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[2].local_regs.ldm[1]": {
       "KEY": "neo_regs[2].local_regs.ldm[1]",
       "START": "0x1824000",
       "END": "0x1825fff",
+      "RESIDES_WITHIN": [
+        "neo_regs[2]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[2].local_regs.ldm[2]": {
       "KEY": "neo_regs[2].local_regs.ldm[2]",
       "START": "0x1826000",
       "END": "0x1827fff",
+      "RESIDES_WITHIN": [
+        "neo_regs[2]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[2].local_regs.ldm[3]": {
       "KEY": "neo_regs[2].local_regs.ldm[3]",
       "START": "0x1828000",
       "END": "0x1829fff",
+      "RESIDES_WITHIN": [
+        "neo_regs[2]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[2].local_regs.l1_client": {
       "KEY": "neo_regs[2].local_regs.l1_client",
       "START": "0x182a000",
       "END": "0x182a0e3",
+      "RESIDES_WITHIN": [
+        "neo_regs[2]",
+        "local_regs"
+      ],
       "REGISTERS": {
         "GROUP_HASH_FN_CTRL": "0x182a000",
         "GROUP_HASH_FN0_MASK": "0x182a004",
@@ -2723,18 +2942,26 @@
       "KEY": "neo_regs[3]",
       "START": "0x1830000",
       "END": "0x183a0e3",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[3].local_regs": {
       "KEY": "neo_regs[3].local_regs",
       "START": "0x1830000",
       "END": "0x183a0e3",
+      "RESIDES_WITHIN": [
+        "neo_regs[3]"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[3].local_regs.debug_regs": {
       "KEY": "neo_regs[3].local_regs.debug_regs",
       "START": "0x1830000",
       "END": "0x183039b",
+      "RESIDES_WITHIN": [
+        "neo_regs[3]",
+        "local_regs"
+      ],
       "REGISTERS": {
         "PERF_CNT_INSTRN_THREAD0": "0x1830000",
         "PERF_CNT_INSTRN_THREAD1": "0x1830004",
@@ -2932,36 +3159,60 @@
       "KEY": "neo_regs[3].local_regs.pic_regs",
       "START": "0x1830400",
       "END": "0x18307ff",
+      "RESIDES_WITHIN": [
+        "neo_regs[3]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[3].local_regs.ldm[0]": {
       "KEY": "neo_regs[3].local_regs.ldm[0]",
       "START": "0x1832000",
       "END": "0x1833fff",
+      "RESIDES_WITHIN": [
+        "neo_regs[3]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[3].local_regs.ldm[1]": {
       "KEY": "neo_regs[3].local_regs.ldm[1]",
       "START": "0x1834000",
       "END": "0x1835fff",
+      "RESIDES_WITHIN": [
+        "neo_regs[3]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[3].local_regs.ldm[2]": {
       "KEY": "neo_regs[3].local_regs.ldm[2]",
       "START": "0x1836000",
       "END": "0x1837fff",
+      "RESIDES_WITHIN": [
+        "neo_regs[3]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[3].local_regs.ldm[3]": {
       "KEY": "neo_regs[3].local_regs.ldm[3]",
       "START": "0x1838000",
       "END": "0x1839fff",
+      "RESIDES_WITHIN": [
+        "neo_regs[3]",
+        "local_regs"
+      ],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "neo_regs[3].local_regs.l1_client": {
       "KEY": "neo_regs[3].local_regs.l1_client",
       "START": "0x183a000",
       "END": "0x183a0e3",
+      "RESIDES_WITHIN": [
+        "neo_regs[3]",
+        "local_regs"
+      ],
       "REGISTERS": {
         "GROUP_HASH_FN_CTRL": "0x183a000",
         "GROUP_HASH_FN0_MASK": "0x183a004",
@@ -3027,12 +3278,16 @@
       "KEY": "tensix_global_regs",
       "START": "0x1840000",
       "END": "0x18410ff",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     },
     "tensix_global_regs.semaphore_regs": {
       "KEY": "tensix_global_regs.semaphore_regs",
       "START": "0x1840000",
       "END": "0x18407ff",
+      "RESIDES_WITHIN": [
+        "tensix_global_regs"
+      ],
       "REGISTERS": {
         "SEMAPHORE[0]": "0x1840000",
         "SEMAPHORE[1]": "0x1840040",
@@ -3073,6 +3328,9 @@
       "KEY": "tensix_global_regs.edc_regs",
       "START": "0x1841000",
       "END": "0x184103f",
+      "RESIDES_WITHIN": [
+        "tensix_global_regs"
+      ],
       "REGISTERS": {
         "ID": "0x1841000",
         "STAT": "0x1841004",
@@ -3097,6 +3355,9 @@
       "KEY": "tensix_global_regs.gsrs_regs",
       "START": "0x1841080",
       "END": "0x18410ff",
+      "RESIDES_WITHIN": [
+        "tensix_global_regs"
+      ],
       "REGISTERS": {
         "REG[0]": "0x1841080",
         "REG[1]": "0x1841084",
@@ -3137,6 +3398,7 @@
       "KEY": "noc_overlay_regs",
       "START": "0x2000000",
       "END": "0x3ffffff",
+      "RESIDES_WITHIN": [],
       "NUM_BYTES_PER_REGISTER": 4
     }
   }
