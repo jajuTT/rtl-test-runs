@@ -21,6 +21,7 @@ import paramiko.ssh_exception
 import pathlib
 import re
 import read_elf
+import registers_utils
 import rtl_utils
 import shlex
 import shutil
@@ -185,11 +186,16 @@ class polaris_big_tests:
 
     @staticmethod
     def get_inputcfg(test_id, test, rtl_args, model_args):
+        key_model_cfg                        = "cfg"
+        key_model_memory_map                 = "memory_map"
+        key_model_debug                      = "debug"
         key_model_start_function             = "start_function"
         key_rtl_local_root_dir               = "local_root_dir"
         key_rtl_local_root_dir_path          = "local_root_dir_path"
         key_rtl_max_num_threads_per_neo_core = "max_num_threads_per_neo_core"
+        key_rtl_rtl_tag                      = "rtl_tag"
         key_rtl_test_dir_suffix              = "test_dir_suffix"
+
 
         for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_rtl_")]:
             assert key in rtl_args.keys(), f"- error: {key} not found in given rtl_args dict"
@@ -206,13 +212,17 @@ class polaris_big_tests:
         if "test_dir_incl_path" not in locals():
             raise Exception(f"- error: test_dir_incl_path not set, most likely did not find {test_dir} in path {local_root_dir_incl_path}")
 
-        input_cfg_dict                = dict()
-        input_cfg_dict["description"] = dict()
-        input_cfg_dict["input"]       = dict()
-        input_cfg                     = input_cfg_dict["input"]
-        input_cfg["syn"]              = 0
-        input_cfg["name"]             = test
-        num_neos                      = t3sim_utils.get_num_neos(test_dir_incl_path)
+        input_cfg_dict                  = dict()
+        input_cfg_dict["llkVersionTag"] = rtl_args[key_rtl_rtl_tag]
+        input_cfg_dict["cfg"]           = model_args[key_model_cfg]
+        input_cfg_dict["memoryMap"]     = model_args[key_model_memory_map]
+        input_cfg_dict["debug"]         = model_args[key_model_debug]
+        input_cfg_dict["numTCores"]     = t3sim_utils.get_num_neos(test_dir_incl_path)
+        input_cfg_dict["input"]         = dict()
+        input_cfg                       = input_cfg_dict["input"]
+        input_cfg["syn"]                = 0
+        input_cfg["name"]               = test
+        num_neos                        = input_cfg_dict["numTCores"]
 
         for neo_id in range(num_neos):
             tc_key = f"tc{neo_id}"
@@ -320,6 +330,9 @@ class polaris_big_tests:
         #         input_cfg[tc_key][f"th1Path"] = ""
         #         input_cfg[tc_key][f"th1Elf"]  = ""
 
+
+        input_cfg_dict["description"] = dict()
+
         return input_cfg_dict
 
     @staticmethod
@@ -348,6 +361,82 @@ class polaris_big_tests:
         return file_name
 
     @staticmethod
+    def get_default_cfg(model_args):
+        key_model_cfg_enable_shared_l1 = "cfg_enable_shared_l1"
+        key_model_cfg_enable_sync      = "cfg_enable_sync"
+        key_model_cfg_global_pointer   = "cfg_global_pointer"
+        key_model_cfg_latency_l1       = "cfg_latency_l1"
+        key_model_cfg_order_scheme     = "cfg_order_scheme"
+        key_model_cfg_risc_cpi         = "cfg_risc.cpi"
+        key_model_cfg_stack            = "cfg_stack"
+
+        for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_model_")]:
+            assert key in model_args.keys(), f"- error: {key} not found in given model_args dict"
+
+        cfg_dict = dict()
+        cfg_dict["enableSync"]     = model_args[key_model_cfg_enable_sync]
+        cfg_dict["numTriscCores"]  = 1
+        cfg_dict["orderScheme"]    = model_args[key_model_cfg_order_scheme]
+        cfg_dict["risc.cpi"]       = model_args[key_model_cfg_risc_cpi]
+        cfg_dict["latency_l1"]     = model_args[key_model_cfg_latency_l1]
+        cfg_dict["enableSharedL1"] = model_args[key_model_cfg_enable_shared_l1]
+        cfg_dict["engines"]        = t3sim_utils.cfg_engines.get_engines(model_args)
+        cfg_dict["stack"]          = model_args[key_model_cfg_stack]
+        cfg_dict["globalPointer"]  = model_args[key_model_cfg_global_pointer]
+        # TODO: read all the keys and corresponding values from the default cfg file.
+
+        return cfg_dict
+
+    @staticmethod
+    def write_default_cfg_file(model_args):
+        key_model_cfg_dir         = "model_cfg_dir"
+        key_model_cfg_file_prefix = "model_cfg_file_prefix"
+        key_model_root_dir        = "model_root_dir"
+        key_model_root_dir_path   = "model_root_dir_path"
+
+        for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_model_")]:
+            assert key in model_args.keys(), f"- error: {key} not found in given model_args dict"
+
+        cfg_dict = polaris_big_tests.get_default_cfg(model_args)
+        cfg_dir_incl_path = os.path.join(model_args[key_model_root_dir_path], model_args[key_model_root_dir], model_args[key_model_cfg_dir])
+        if not os.path.isdir(cfg_dir_incl_path):
+            os.makedirs(cfg_dir_incl_path, exist_ok = True)
+
+        file_name = os.path.join(cfg_dir_incl_path, f"{model_args[key_model_cfg_file_prefix]}.json")
+        with open(file_name, 'w') as file:
+            json.dump(cfg_dict, file, indent = 2)
+
+        return file_name
+
+    @staticmethod
+    def write_default_memory_map_file(rtl_args, model_args):
+        key_model_cfg_dir         = "model_cfg_dir"
+        key_model_cfg_file_prefix = "model_cfg_file_prefix"
+        key_model_memory_map_file_prefix = "model_memory_map_file_prefix"
+        key_model_root_dir        = "model_root_dir"
+        key_model_root_dir_path   = "model_root_dir_path"
+        key_rtl_local_root_dir      = "local_root_dir"
+        key_rtl_local_root_dir_path = "local_root_dir_path"
+        key_rtl_num_bytes_per_register = "num_bytes_per_register"
+
+        for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_rtl_")]:
+            assert key in rtl_args.keys(), f"- error: {key} not found in given rtl_args dict"
+
+        for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_model_")]:
+            assert key in model_args.keys(), f"- error: {key} not found in given model_args dict"
+
+        cfg_dir_incl_path = os.path.join(model_args[key_model_root_dir_path], model_args[key_model_root_dir], model_args[key_model_cfg_dir])
+        if not os.path.isdir(cfg_dir_incl_path):
+            os.makedirs(cfg_dir_incl_path, exist_ok = True)
+
+        file_name = os.path.join(cfg_dir_incl_path, f"{model_args[key_model_memory_map_file_prefix]}.json")
+        rtl_data_path = os.path.join(rtl_args[key_rtl_local_root_dir_path], rtl_args[key_rtl_local_root_dir])
+        registers_utils.write_memory_map(rtl_data_path, rtl_args[key_rtl_num_bytes_per_register], file_name)
+
+        return file_name
+
+
+    @staticmethod
     def execute_test(test_id, test, rtl_args, model_args):
         key_model_log_file_suffix = "model_log_file_suffix"
         key_model_odir = "model_odir"
@@ -361,7 +450,7 @@ class polaris_big_tests:
             assert key in model_args.keys(), f"- error: {key} not found in given rtl_args dict"
 
         inputcfg_file_name = polaris_big_tests.write_inputcfg_file(test_id, test, rtl_args, model_args)
-        cfg_file_name = polaris_big_tests.write_cfg_file(test_id, test, rtl_args, model_args)
+        # cfg_file_name = polaris_big_tests.write_cfg_file(test_id, test, rtl_args, model_args)
 
         pb_dir_incl_path = os.path.join(model_args[key_model_root_dir_path], model_args[key_model_root_dir])
         odir_incl_path = os.path.join(pb_dir_incl_path, model_args[key_model_odir])
@@ -386,7 +475,7 @@ class polaris_big_tests:
 
         cmds = [
             f"cd {pb_dir_incl_path}",
-            f"PYTHONPATH='.' python ttsim/back/tensix_neo/tneoSim.py --cfg {cfg_file_name} --inputcfg {inputcfg_file_name} --odir {model_args[key_model_odir]} --debug 15"
+            f"PYTHONPATH='.' python ttsim/back/tensix_neo/tneoSim.py --inputcfg {inputcfg_file_name} --odir {model_args[key_model_odir]}"
         ]
         cmd = " && ".join(cmds)
         print(f"- test ID: {test_id}, executing: {cmd}")
@@ -411,6 +500,8 @@ class polaris_big_tests:
             assert key in model_args.keys(), f"- error: {key} not found in given args dict"
 
         polaris_big_tests.check_and_update_isa_file(rtl_args, model_args)
+        model_args['cfg'] = polaris_big_tests.write_default_cfg_file(model_args)
+        model_args['memory_map'] = polaris_big_tests.write_default_memory_map_file(rtl_args, model_args)
 
         num_processes = min([rtl_args[key_num_processes], model_args[key_num_processes], len(tests)])
         print(f"- Number of tests to execute via model:                      {len(tests)}")
