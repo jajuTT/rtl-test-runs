@@ -450,6 +450,7 @@ class rtl_tests:
     @staticmethod
     def copy_partial_src(args):
         assert isinstance(args, dict), "- error: expected args to be a dict"
+        key_force = "force"
         key_hostname = "hostname"
         key_local_root_dir = "local_root_dir"
         key_local_root_dir_path = "local_root_dir_path"
@@ -467,15 +468,21 @@ class rtl_tests:
         local_src_dir_incl_path = os.path.join(args[key_local_root_dir_path], args[key_local_root_dir], args[key_src_dir])
 
         dirs_to_copy = ["firmware", "hardware", "meta", "verif/tensix/tests"]
+        dirs_to_copy = [dir_name for dir_name in dirs_to_copy if (not os.path.exists(os.path.join(local_src_dir_incl_path, dir_name))) or args[key_force]]
+        for dir_name in dirs_to_copy:
+            if not os.path.exists(os.path.join(local_src_dir_incl_path, dir_name)):
+                print(f"- directory {dir_name} does not exist in {local_src_dir_incl_path}")
         num_processes = min(args[key_num_processes], len(dirs_to_copy))
 
-        with multiprocessing.Pool(processes = num_processes) as pool:
-            pool.starmap(copy.copy_dir_from_remote_to_local, [(
-                args[key_hostname],
-                args[key_username],
-                args[key_port],
-                os.path.join(remote_src_dir_incl_path, dir_name),
-                os.path.join(local_src_dir_incl_path, dir_name)) for dir_name in dirs_to_copy])
+        if num_processes > 0:
+            with multiprocessing.Pool(processes = num_processes) as pool:
+                pool.starmap(copy.copy_dir_from_remote_to_local, [(
+                    args[key_hostname],
+                    args[key_username],
+                    args[key_port],
+                    os.path.join(remote_src_dir_incl_path, dir_name),
+                    os.path.join(local_src_dir_incl_path, dir_name)) for dir_name in dirs_to_copy])
+
 
 # def get_test_names_from_given_file(file_name, args):
 #     assert isinstance(args, dict), "- error: expected args to be a dict"
