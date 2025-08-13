@@ -254,24 +254,24 @@ class polaris_big_tests:
                                 input_neo[f"th{thread_id}Path"] = pwd1
                                 input_neo[f"th{thread_id}Elf"] = file
 
-                    if "t6-quas-n1-ttx-recip-Float16_b-upk-to-dest-llk" == test:
-                        input_neo["th3Path"] = input_neo["th2Path"]
-                        input_neo["th3Elf"]  = input_neo["th2Elf"]
+                    # if "t6-quas-n1-ttx-recip-Float16_b-upk-to-dest-llk" == test:
+                    #     input_neo["th3Path"] = input_neo["th2Path"]
+                    #     input_neo["th3Elf"]  = input_neo["th2Elf"]
 
-                        # move thread 1 to thread 2.
-                        input_neo["th2Path"] = input_neo["th1Path"]
-                        input_neo["th2Elf"]  = input_neo["th1Elf"]
+                    #     # move thread 1 to thread 2.
+                    #     input_neo["th2Path"] = input_neo["th1Path"]
+                    #     input_neo["th2Elf"]  = input_neo["th1Elf"]
 
-                        # make thread 1 empty
-                        input_neo[f"th1Path"] = ""
-                        input_neo[f"th1Elf"]  = ""
-                    else:
-                        input_neo["th3Path"] = input_neo["th2Path"]
-                        input_neo["th3Elf"]  = input_neo["th2Elf"]
+                    #     # make thread 1 empty
+                    #     input_neo[f"th1Path"] = ""
+                    #     input_neo[f"th1Elf"]  = ""
+                    # else:
+                    #     input_neo["th3Path"] = input_neo["th2Path"]
+                    #     input_neo["th3Elf"]  = input_neo["th2Elf"]
 
-                        # make thread 2 empty
-                        input_neo[f"th2Path"] = ""
-                        input_neo[f"th2Elf"]  = ""
+                    #     # make thread 2 empty
+                    #     input_neo[f"th2Path"] = ""
+                    #     input_neo[f"th2Elf"]  = ""
 
             input_cfg[tc_key] = {key : input_neo[key] for key in sorted(input_neo.keys())}
 
