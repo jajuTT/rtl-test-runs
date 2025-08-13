@@ -48,7 +48,22 @@ def get_ird_reservations_list(username = getpass.getuser(), hostname = "yyz-ird"
             data = [dict(zip(cols, re.split(r'\s{2,}', line.strip()))) for line in lines[1:]]
             return data
 
+def is_ird_instance_needed(rtl_args, polaris_big_args):
+    if rtl_args["force"] or polaris_big_args["force"]:
+        return True
+
+    local_rtl_data_dir = os.path.join(rtl_args["local_root_dir_path"], rtl_args["local_root_dir"])
+    if not os.path.exists(local_rtl_data_dir):
+        print(f"- local RTL data directory {local_rtl_data_dir} does not exist.")
+        return True
+
+    #TODO: add more checks to determine if IRD instance is needed.
+
+    return False
+
+
 def reserve_tensix_ird_instance(username = None, hostname = "yyz-ird", machine = None, key = os.path.expanduser("~/.ssh/id_ed25519")):
+
     def get_ird_selection_id(username, hostname, key):
         table_dict   = get_ird_reservations_list(username = username, hostname = hostname, key_file_name = key)
         selection_id = table_dict[-1]["SELECTION ID"]
@@ -60,7 +75,9 @@ def reserve_tensix_ird_instance(username = None, hostname = "yyz-ird", machine =
         return selection_id, machine, port
         # TODO: check timestamp. For now, the assumption is ird instance is reserved and we are returning the latest one.
 
-    hostname = "yyz-ird"
+    if not hostname:
+        raise ValueError("hostname must be specified")
+
     if not username:
         username = getpass.getuser()
 
@@ -94,8 +111,10 @@ def reserve_tensix_ird_instance(username = None, hostname = "yyz-ird", machine =
 
     return (selection_id, hostname, port)
 
-def ird_release(selection_id, username = None):
-    hostname = "yyz-ird"
+def ird_release(selection_id, hostname = None, username = None):
+    if not hostname:
+        hostname = "yyz-ird"
+
     if not username:
         username = getpass.getuser()
 
@@ -328,17 +347,6 @@ if "__main__" == __name__:
         rtl_args["rtl_tag"] = "jul27"
     rtl_args["local_root_dir"] = f"from-{rtl_args['remote_root_dir']}-{rtl_args['rtl_tag']}"
 
-    rtl_utils.copy.safe_connection(host = rtl_args["ird_server"], user = rtl_args["username"], connect_kwargs = {"key_filename": rtl_args["ssh_key_file"]})
-
-    selID, machine, port = reserve_tensix_ird_instance(
-        hostname = rtl_args["ird_server"],
-        username = rtl_args["username"],
-        key = rtl_args["ssh_key_file"])
-
-    rtl_args["hostname"]   = machine
-    rtl_args["ird_sel_id"] = selID
-    rtl_args["port"]       = port
-
     polaris_big_args = dict()
     polaris_big_args["cfg_enable_shared_l1"]       = 1
     polaris_big_args["cfg_enable_sync"]            = 1
@@ -349,14 +357,14 @@ if "__main__" == __name__:
     polaris_big_args["default_cfg_file_name"]      = f"ttqs_neo4_{rtl_args["rtl_tag"]}.json"
     polaris_big_args["force"]                      = rtl_args["force"] # rtl_args["force"]
     polaris_big_args["instruction_kind"]           = "ttqs"
-    polaris_big_args["model_cfg_dir"]              = "__config_files"
+    polaris_big_args["model_cfg_dir"]              = f"__config_files_{rtl_args['rtl_tag']}"
     polaris_big_args["model_cfg_file_prefix"]      = "cfg_"
     polaris_big_args["model_git_branch"]           = "main" # pb branch
-    polaris_big_args["model_git_url"]              = "git@github.com:vmgeorgeTT/polaris_big.git"
+    polaris_big_args["model_git_url"]              = "git@github.com:tenstorrent/polaris_big.git"
     polaris_big_args["model_inputcfg_file_prefix"] = "inputcfg_"
     polaris_big_args["model_log_file_suffix"]      = ".model_test.log"
-    polaris_big_args["model_logs_dir"]             = "__logs"
-    polaris_big_args["model_odir"]                 = "__llk"
+    polaris_big_args["model_logs_dir"]             = f"__logs_{rtl_args['rtl_tag']}"
+    polaris_big_args["model_odir"]                 = f"__llk_{rtl_args['rtl_tag']}"
     polaris_big_args["num_processes"]              = rtl_args["num_processes"]
     polaris_big_args["start_function"]             = "main"
     polaris_big_args["cfg_stack"]                  = {
@@ -387,7 +395,30 @@ if "__main__" == __name__:
     polaris_big_args["model_simreport"] = "simreport_"
     polaris_big_args["model_log_file_end"] = "Simreport = "
 
-    check_rtl_test_bench_path_clone_and_build_if_required(path, rtl_args["remote_root_dir"], machine, port, rtl_args["username"])
+    if os.path.exists(polaris_big_args["model_root_dir"]):
+        print(f"- directory {polaris_big_args["model_root_dir"]} exists!")
+
+    need_ird_instance = is_ird_instance_needed(rtl_args, polaris_big_args)
+    print("- need_ird_instance: ", need_ird_instance)
+
+    rtl_utils.copy.safe_connection(host = rtl_args["ird_server"], user = rtl_args["username"], connect_kwargs = {"key_filename": rtl_args["ssh_key_file"]})
+
+    if need_ird_instance:
+        selID, machine, port = reserve_tensix_ird_instance(
+            hostname = rtl_args["ird_server"],
+            username = rtl_args["username"],
+            key = rtl_args["ssh_key_file"])
+    else:
+        selID = None
+        machine = None
+        port = None
+
+    rtl_args["hostname"]   = machine
+    rtl_args["ird_sel_id"] = selID
+    rtl_args["port"]       = port
+
+    if need_ird_instance:
+        check_rtl_test_bench_path_clone_and_build_if_required(path, rtl_args["remote_root_dir"], machine, port, rtl_args["username"])
 
     tests = sorted(rtl_utils.test_names.get_tests(rtl_args))
     tests = [test for test in tests if "t6-quas-n4-ttx-matmul-l1-acc-multicore-height-sharded-mxfp4_a-llk" != test]
@@ -399,4 +430,5 @@ if "__main__" == __name__:
     polaris_big_utils.polaris_big_tests.execute_tests(tests, rtl_args, polaris_big_args)
     status_utils.print_status(tests, rtl_args, polaris_big_args)
 
-    ird_release(selID)
+    if need_ird_instance:
+        ird_release(selID)
