@@ -350,26 +350,27 @@ if "__main__" == __name__:
 
     polaris_big_args = dict()
     polaris_big_args["cfg_enable_shared_l1"]         = 1
-    polaris_big_args["cfg_enable_shared_l1"]       = 1
-    polaris_big_args["cfg_enable_sync"]            = 1
-    polaris_big_args["cfg_global_pointer"]         = "0xffb007f0"
-    polaris_big_args["cfg_latency_l1"]             = 10.0
-    polaris_big_args["cfg_order_scheme"]           = [ [0,1], [0,1], [0,2], [] ]
-    polaris_big_args["cfg_risc.cpi"]               = 1.0
-    polaris_big_args["default_cfg_file_name"]      = f"ttqs_neo4_{rtl_args["rtl_tag"]}.json"
-    polaris_big_args["force"]                      = rtl_args["force"] # rtl_args["force"]
-    polaris_big_args["instruction_kind"]           = "ttqs"
-    polaris_big_args["model_cfg_dir"]              = f"__config_files_{rtl_args['rtl_tag']}"
-    polaris_big_args["model_cfg_file_prefix"]      = "cfg_"
-    polaris_big_args["model_git_branch"]           = "main" # pb branch
-    polaris_big_args["model_git_url"]              = "git@github.com:tenstorrent/polaris_big.git"
-    polaris_big_args["model_inputcfg_file_prefix"] = "inputcfg_"
-    polaris_big_args["model_log_file_suffix"]      = ".model_test.log"
-    polaris_big_args["model_logs_dir"]             = f"__logs_{rtl_args['rtl_tag']}"
-    polaris_big_args["model_odir"]                 = f"__llk_{rtl_args['rtl_tag']}"
-    polaris_big_args["num_processes"]              = rtl_args["num_processes"]
-    polaris_big_args["start_function"]             = "main"
-    polaris_big_args["cfg_stack"]                  = {
+    polaris_big_args["cfg_enable_shared_l1"]         = 1
+    polaris_big_args["cfg_enable_sync"]              = 1
+    polaris_big_args["cfg_global_pointer"]           = "0xffb007f0"
+    polaris_big_args["cfg_latency_l1"]               = 10.0
+    polaris_big_args["cfg_order_scheme"]             = [ [0,1], [0,1], [0,2], [] ]
+    polaris_big_args["cfg_risc.cpi"]                 = 1.0
+    polaris_big_args["default_cfg_file_name"]        = f"ttqs_neo4_{rtl_args["rtl_tag"]}.json"
+    polaris_big_args["force"]                        = rtl_args["force"] # rtl_args["force"]
+    polaris_big_args["instruction_kind"]             = "ttqs"
+    polaris_big_args["model_cfg_dir"]                = f"__config_files_{rtl_args['rtl_tag']}"
+    polaris_big_args["model_cfg_file_prefix"]        = "cfg"
+    polaris_big_args["model_memory_map_file_prefix"] = "memory_map"
+    polaris_big_args["model_git_branch"]             = "main" # pb branch
+    polaris_big_args["model_git_url"]                = "git@github.com:tenstorrent/polaris_big.git"
+    polaris_big_args["model_inputcfg_file_prefix"]   = "inputcfg_"
+    polaris_big_args["model_log_file_suffix"]        = ".model_test.log"
+    polaris_big_args["model_logs_dir"]               = f"__logs_{rtl_args['rtl_tag']}"
+    polaris_big_args["model_odir"]                   = f"__llk_{rtl_args['rtl_tag']}"
+    polaris_big_args["num_processes"]                = rtl_args["num_processes"]
+    polaris_big_args["start_function"]               = "main"
+    polaris_big_args["cfg_stack"]                    = {
         "0": [
             "0x8023FF",
             "0x802000"
