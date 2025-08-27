@@ -333,8 +333,8 @@ if "__main__" == __name__:
     # path      = f"/proj_tensix/user_dev/sjaju/work/{month_str}/{day_str}"
     # path = "/proj_tensix/user_dev/sjaju/work/feb/19"
     # path = "/proj_tensix/user_dev/sjaju/work/mar/18"
-    path = "/proj_tensix/user_dev/sjaju/work/july/01"
-    # path = "/proj_tensix/user_dev/sjaju/work/july/27"
+    # path = "/proj_tensix/user_dev/sjaju/work/july/01"
+    path = "/proj_tensix/user_dev/sjaju/work/july/27"
     month_str = None
     day_str = None
     del month_str

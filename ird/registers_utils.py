@@ -8,6 +8,8 @@ import re
 import sys
 import copy
 
+DEBUG = 1
+
 def to_int(value):
     if isinstance(value, int):
         return value
@@ -226,9 +228,9 @@ def get_cfg_defines_file_path(path):
     file_paths = []
     for pwd, _, files in os.walk(path):
         for file in files:
-            if "cfg_defines.h" == file:
+            if cfg_defines_file == file:
                 file_paths.append(os.path.join(pwd, file))
-    print(f"Found {len(file_paths)} cfg_defines.h files.")
+    print(f"Found {len(file_paths)} {cfg_defines_file} files.")
     print("Paths:", file_paths)
     return sorted(file_paths)
 
@@ -244,6 +246,70 @@ def get_cfg_defines(path='.'):
             cfg_defines = get_cfg_defines_from_file(file)
             assert cfg_defines == cfg_defines0, f"Warning: Multiple cfg_defines.h files found with different contents: {file_paths}"
     return cfg_defines0
+
+def get_offsets_fields_from_cfg_defines(path, num_bytes_per_register):
+    num_bits_per_register = num_bytes_per_register * 8
+    cfg_defines = get_cfg_defines(path)
+    registers = dict()
+    for key, value in cfg_defines.items():
+        if key.endswith('ADDR32'):
+            registers[key] = dict()
+            registers[key]["OFFSET"] = int(value)
+
+            shamt_key = key.replace('ADDR32', 'SHAMT')
+            if shamt_key in cfg_defines:
+                registers[key]["SHAMT"] = int(cfg_defines[shamt_key])
+
+            mask_key = key.replace('ADDR32', 'MASK')
+            if mask_key in cfg_defines:
+                # registers[key]["MASK"] = to_int(cfg_defines[mask_key])
+                registers[key]["MASK"] = cfg_defines[mask_key]
+
+    for reg_name, reg_info in registers.items():
+        if 'SHAMT' in reg_info:
+            assert 'MASK' in reg_info, f"Missing MASK for {reg_name}, reg_info = {reg_info}"
+
+        if 'MASK' in reg_info:
+            assert 'SHAMT' in reg_info, f"Missing SHAMT for {reg_name}, reg_info = {reg_info}"
+
+    offsets_regs = {value : dict() for value in sorted(set([value["OFFSET"] for value in registers.values()]))}
+    for offset, regs in offsets_regs.items():
+        for reg_name, reg_info in registers.items():
+            if reg_info["OFFSET"] == offset:
+                regs[reg_name.replace('_ADDR32', '')] = reg_info
+
+    for offset, regs in offsets_regs.items():
+        new_regs = dict()
+        for reg_name, reg_info in sorted(regs.items(), key=lambda x: x[1]["SHAMT"] if "SHAMT" in x[1] else math.inf):
+            if 'OFFSET' in reg_info:
+                del reg_info['OFFSET']
+            new_regs[reg_name] = copy.deepcopy(reg_info)
+
+        offsets_regs[offset] = new_regs
+
+    for offset, regs in offsets_regs.items():
+        lsbs = sorted([reg_info["SHAMT"] for reg_info in regs.values() if "SHAMT" in reg_info.keys()])
+        for idx, lsb in enumerate(lsbs):
+            for reg_name, reg_info in regs.items():
+                if "SHAMT" in reg_info.keys() and reg_info["SHAMT"] == lsb:
+                    mask = to_int(reg_info['MASK'])
+                    if mask.bit_length() > num_bits_per_register:
+                        msg = f"Warning: Bit length {bit_len} of mask {mask} exceeds register size at offset {hex(offset)} for SHAMT {lsb}, reg_name: {reg_name}."
+                        if DEBUG & 0x1:
+                            print(msg)
+                        else:
+                            raise Exception(msg)
+                    mask = mask >> reg_info["SHAMT"]
+                    bit_len = mask.bit_length()
+
+                    if (idx < len(lsbs) - 1) and ((lsb + bit_len - 1) >= lsbs[idx + 1]):
+                        msg = f"Warning: Bit length {bit_len} of mask {mask} overlaps next LSB at offset {hex(offset)} for SHAMT {lsb}, reg_name: {reg_name}."
+                        if DEBUG & 0x1:
+                            print(msg)
+                        else:
+                            raise Exception(msg)
+
+    return offsets_regs
 
 def get_registers_addresses_from_cfg_defines(path):
     cfg_defines = get_cfg_defines(path)
@@ -290,13 +356,14 @@ def identify_missing_addresses_in_cfg_defines(path):
     else:
         print("  - No missing addresses found in cfg_defines.")
 
-def get_trisc_address_map(path):
+def get_trisc_address_map(path, num_bytes_per_register):
     html_file = "TriscAddressMap.html"
     files_incl_path = get_files_from_path(path, name = html_file)
     print(f"Found {len(files_incl_path)} TriscAddressMap.html files in the path: {path}")
     addrs = get_addresses_from_html_files(files_incl_path)
 
-    cfg_offsets = get_one_register_name_per_address_from_cfg_defines(path)
+    # cfg_offsets = get_one_register_name_per_address_from_cfg_defines(path)
+    cfg_offsets = get_offsets_fields_from_cfg_defines(path, num_bytes_per_register)
     addrs['cfg_regs']['OFFSETS'] = cfg_offsets
 
     return addrs
@@ -317,7 +384,7 @@ def add_num_bytes_per_registers(mem_map, num_bytes_per_register):
     return mem_map
 
 def get_trisc_address_map_incl_reg_size(path, num_bytes_per_register):
-    addrs = get_trisc_address_map(path)
+    addrs = get_trisc_address_map(path, num_bytes_per_register)
     add_num_bytes_per_registers(addrs, num_bytes_per_register)
 
     return addrs
@@ -364,4 +431,6 @@ def write_memory_map(path, num_bytes_per_register, file_to_write):
         json.dump(mem_map, f, indent = 2)
 
 if "__main__" == __name__:
-    write_memory_map(sys.argv[1], 4, "memory_map.json")
+    tags = {"feb19", "mar18", "jul1", "jul27"}
+    for tag in tags:
+        write_memory_map(f"from-ws-tensix-{tag}", 4, f"ttqs_memory_map_{tag}.json")
