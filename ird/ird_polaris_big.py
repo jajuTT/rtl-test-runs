@@ -310,7 +310,7 @@ if "__main__" == __name__:
     rtl_args["ird_server"]               = "yyz-ird"
     rtl_args["isa_file_name"]            = "assembly.yaml"
     rtl_args["max_num_threads_per_neo_core"] = 4
-    rtl_args["num_processes"]            = 8
+    rtl_args["num_processes"]            = 11
     rtl_args["project.yaml"]             = "project.yml"
     rtl_args["remote_root_dir"]          = "ws-tensix"
     rtl_args["rtl_log_file_suffix"]      = ".rtl_test.log"
@@ -354,7 +354,7 @@ if "__main__" == __name__:
     polaris_big_args["cfg_enable_sync"]              = 1
     polaris_big_args["cfg_global_pointer"]           = "0xffb007f0"
     polaris_big_args["cfg_latency_l1"]               = 10.0
-    polaris_big_args["cfg_order_scheme"]             = [ [0,1], [0,1], [0,2], [] ]
+    polaris_big_args["cfg_order_scheme"]             = [ [0,1], [0,1], [0,2,3], [] ]
     polaris_big_args["cfg_risc.cpi"]                 = 1.0
     polaris_big_args["default_cfg_file_name"]        = f"ttqs_neo4_{rtl_args["rtl_tag"]}.json"
     polaris_big_args["force"]                        = rtl_args["force"] # rtl_args["force"]
