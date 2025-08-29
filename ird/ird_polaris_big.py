@@ -310,7 +310,7 @@ if "__main__" == __name__:
     rtl_args["ird_server"]               = "yyz-ird"
     rtl_args["isa_file_name"]            = "assembly.yaml"
     rtl_args["max_num_threads_per_neo_core"] = 4
-    rtl_args["num_processes"]            = 8
+    rtl_args["num_processes"]            = 11
     rtl_args["project.yaml"]             = "project.yml"
     rtl_args["remote_root_dir"]          = "ws-tensix"
     rtl_args["rtl_log_file_suffix"]      = ".rtl_test.log"
@@ -326,13 +326,14 @@ if "__main__" == __name__:
     rtl_args["test_dir_suffix"]          =  "_0"
     rtl_args["tests_dir"]                = "infra/tensix/rsim/tests"
     rtl_args["username"]                 = getpass.getuser()
+    rtl_args["num_bytes_per_register"]   = 4
 
     # month_str =  datetime.datetime.now().strftime('%B').lower()
     # day_str   = f"{datetime.datetime.now().day:02d}"
     # path      = f"/proj_tensix/user_dev/sjaju/work/{month_str}/{day_str}"
     # path = "/proj_tensix/user_dev/sjaju/work/feb/19"
     # path = "/proj_tensix/user_dev/sjaju/work/mar/18"
-    path = "/proj_tensix/user_dev/sjaju/work/july/01"
+    # path = "/proj_tensix/user_dev/sjaju/work/july/01"
     path = "/proj_tensix/user_dev/sjaju/work/july/27"
     month_str = None
     day_str = None
@@ -348,26 +349,28 @@ if "__main__" == __name__:
     rtl_args["local_root_dir"] = f"from-{rtl_args['remote_root_dir']}-{rtl_args['rtl_tag']}"
 
     polaris_big_args = dict()
-    polaris_big_args["cfg_enable_shared_l1"]       = 1
-    polaris_big_args["cfg_enable_sync"]            = 1
-    polaris_big_args["cfg_global_pointer"]         = "0xffb007f0"
-    polaris_big_args["cfg_latency_l1"]             = 10.0
-    polaris_big_args["cfg_order_scheme"]           = [ [0,1], [0,1], [0,2], [] ]
-    polaris_big_args["cfg_risc.cpi"]               = 1.0
-    polaris_big_args["default_cfg_file_name"]      = f"ttqs_neo4_{rtl_args["rtl_tag"]}.json"
-    polaris_big_args["force"]                      = rtl_args["force"] # rtl_args["force"]
-    polaris_big_args["instruction_kind"]           = "ttqs"
-    polaris_big_args["model_cfg_dir"]              = f"__config_files_{rtl_args['rtl_tag']}"
-    polaris_big_args["model_cfg_file_prefix"]      = "cfg_"
-    polaris_big_args["model_git_branch"]           = "main" # pb branch
-    polaris_big_args["model_git_url"]              = "git@github.com:tenstorrent/polaris_big.git"
-    polaris_big_args["model_inputcfg_file_prefix"] = "inputcfg_"
-    polaris_big_args["model_log_file_suffix"]      = ".model_test.log"
-    polaris_big_args["model_logs_dir"]             = f"__logs_{rtl_args['rtl_tag']}"
-    polaris_big_args["model_odir"]                 = f"__llk_{rtl_args['rtl_tag']}"
-    polaris_big_args["num_processes"]              = rtl_args["num_processes"]
-    polaris_big_args["start_function"]             = "main"
-    polaris_big_args["cfg_stack"]                  = {
+    polaris_big_args["cfg_enable_shared_l1"]         = 1
+    polaris_big_args["cfg_enable_shared_l1"]         = 1
+    polaris_big_args["cfg_enable_sync"]              = 1
+    polaris_big_args["cfg_global_pointer"]           = "0xffb007f0"
+    polaris_big_args["cfg_latency_l1"]               = 10.0
+    polaris_big_args["cfg_order_scheme"]             = [ [0,1], [0,1], [0,2,3], [] ]
+    polaris_big_args["cfg_risc.cpi"]                 = 1.0
+    polaris_big_args["default_cfg_file_name"]        = f"ttqs_neo4_{rtl_args["rtl_tag"]}.json"
+    polaris_big_args["force"]                        = rtl_args["force"] # rtl_args["force"]
+    polaris_big_args["instruction_kind"]             = "ttqs"
+    polaris_big_args["model_cfg_dir"]                = f"__config_files_{rtl_args['rtl_tag']}"
+    polaris_big_args["model_cfg_file_prefix"]        = "cfg"
+    polaris_big_args["model_memory_map_file_prefix"] = "memory_map"
+    polaris_big_args["model_git_branch"]             = "main" # pb branch
+    polaris_big_args["model_git_url"]                = "git@github.com:tenstorrent/polaris_big.git"
+    polaris_big_args["model_inputcfg_file_prefix"]   = "inputcfg_"
+    polaris_big_args["model_log_file_suffix"]        = ".model_test.log"
+    polaris_big_args["model_logs_dir"]               = f"__logs_{rtl_args['rtl_tag']}"
+    polaris_big_args["model_odir"]                   = f"__llk_{rtl_args['rtl_tag']}"
+    polaris_big_args["num_processes"]                = rtl_args["num_processes"]
+    polaris_big_args["start_function"]               = "main"
+    polaris_big_args["cfg_stack"]                    = {
         "0": [
             "0x8023FF",
             "0x802000"
@@ -394,6 +397,7 @@ if "__main__" == __name__:
         "UNPACKER0" : ["POP_TILES", "UNPACR_DEST_TILE", "UNPACR_DEST_TILE_INC", "UNPACR_DEST_FACE", "UNPACR_DEST_FACE_INC", "UNPACR_DEST_ROW", "UNPACR_DEST_ROW_INC", "UNPACR_DEST_STRIDE"]}
     polaris_big_args["model_simreport"] = "simreport_"
     polaris_big_args["model_log_file_end"] = "Simreport = "
+    polaris_big_args["debug"] = 15
 
     if os.path.exists(polaris_big_args["model_root_dir"]):
         print(f"- directory {polaris_big_args["model_root_dir"]} exists!")
