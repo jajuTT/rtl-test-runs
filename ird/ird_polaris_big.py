@@ -289,23 +289,49 @@ def check_rtl_test_bench_path_clone_and_build_if_required(path, repo_dir, machin
                 else:
                     print(f"rtl test bench already compiled and built")
 
+def get_rtl_data_path_from_rtl_tag(tag):
+    match tag:
+        case "feb19" : return "/proj_tensix/user_dev/sjaju/work/feb/19"
+        case "mar18" : return "/proj_tensix/user_dev/sjaju/work/mar/18"
+        case "jul1"  : return "/proj_tensix/user_dev/sjaju/work/july/01"
+        case "jul27" : return "/proj_tensix/user_dev/sjaju/work/july/27"
+        case _       :
+            month_str =  datetime.datetime.now().strftime('%B').lower()[0:3]
+            day_str   = f"{datetime.datetime.now().day}"
+            path      = f"/proj_tensix/user_dev/sjaju/work/{month_str}/{day_str}"
+            tag       = month_str + day_str
+            return tag, path
+
+def get_yml_files_containing_tests(tag):
+    if tag in ["feb19", "mar18"]:
+        return {
+            "ttx-test-llk-sfpu.yml"  : {"suites" : "postcommit"},
+            "ttx-test-llk.yml"       : {"suites" : "postcommit"}
+        }
+    else:
+        return {
+            "ttx-llk-sfpu.yml"  : {"suites" : "postcommit"},
+            "ttx-llk-fixed.yml" : {"suites" : "postcommit"}
+        }
+
 if "__main__" == __name__:
     rtl_args = dict()
-    rtl_args["suites"]    = "postcommit"
-    rtl_args["tags"]      = None
-    rtl_args["tests"]     = None
-    rtl_args["yaml_files"] = {
-        "ttx-llk-sfpu.yml"  : {"suites" : "postcommit"},
-        "ttx-llk-fixed.yml" : {"suites" : "postcommit"}}
+    rtl_args["rtl_tag"] = "jul27"
+    path = get_rtl_data_path_from_rtl_tag(rtl_args["rtl_tag"])
+    if isinstance(path, tuple):
+        rtl_args["rtl_tag"] = path[0]
+        path = path[1]
 
-    # rtl_args["yaml_files"] = {
-    #     "ttx-test-llk-sfpu.yml"  : {"suites" : "postcommit"},
-    #     "ttx-test-llk.yml"       : {"suites" : "postcommit"}}
-
+    print("rtl data path = ", path)
+    print("rtl_tag = ", rtl_args["rtl_tag"])
+    rtl_args["suites"]                   = "postcommit"
+    rtl_args["tags"]                     = None
+    rtl_args["tests"]                    = None
+    rtl_args["yaml_files"]               = get_yml_files_containing_tests(rtl_args["rtl_tag"])
     rtl_args["debug_dir_path"]           = "rsim"
     rtl_args["debug_dir"]                = "debug"
     rtl_args["force"]                    = False
-    rtl_args["git"]                      = "git@yyz-tensix-gitlab:tensix-hw/ws-tensix.git" # TODO: rtl_args["test_bench_dir"] and rtl_args["git"] should not be independent.
+    rtl_args["git"]                      = "git@yyz-tensix-gitlab:tensix-hw/ws-tensix.git"
     rtl_args["infra_dir"]                = "infra"
     rtl_args["ird_server"]               = "yyz-ird"
     rtl_args["isa_file_name"]            = "assembly.yaml"
@@ -327,29 +353,11 @@ if "__main__" == __name__:
     rtl_args["tests_dir"]                = "infra/tensix/rsim/tests"
     rtl_args["username"]                 = getpass.getuser()
     rtl_args["num_bytes_per_register"]   = 4
-
-    # month_str =  datetime.datetime.now().strftime('%B').lower()
-    # day_str   = f"{datetime.datetime.now().day:02d}"
-    # path      = f"/proj_tensix/user_dev/sjaju/work/{month_str}/{day_str}"
-    # path = "/proj_tensix/user_dev/sjaju/work/feb/19"
-    # path = "/proj_tensix/user_dev/sjaju/work/mar/18"
-    # path = "/proj_tensix/user_dev/sjaju/work/july/01"
-    path = "/proj_tensix/user_dev/sjaju/work/july/27"
-    month_str = None
-    day_str = None
-    del month_str
-    del day_str
-    rtl_args["remote_root_dir_path"] = path
-    rtl_args["local_root_dir_path"] = os.getcwd()
-    rtl_args["rtl_tag"] = "".join(rtl_args["remote_root_dir_path"].split(os.path.sep)[-2:])
-    if "july01" == rtl_args["rtl_tag"]:
-        rtl_args["rtl_tag"] = "jul1"
-    elif "july27" == rtl_args["rtl_tag"]:
-        rtl_args["rtl_tag"] = "jul27"
-    rtl_args["local_root_dir"] = f"from-{rtl_args['remote_root_dir']}-{rtl_args['rtl_tag']}"
+    rtl_args["remote_root_dir_path"]     = path
+    rtl_args["local_root_dir_path"]      = os.getcwd()
+    rtl_args["local_root_dir"]           = f"from-{rtl_args['remote_root_dir']}-{rtl_args['rtl_tag']}"
 
     polaris_big_args = dict()
-    polaris_big_args["cfg_enable_shared_l1"]         = 1
     polaris_big_args["cfg_enable_shared_l1"]         = 1
     polaris_big_args["cfg_enable_sync"]              = 1
     polaris_big_args["cfg_global_pointer"]           = "0xffb007f0"

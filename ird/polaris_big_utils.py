@@ -158,6 +158,7 @@ class polaris_big_tests:
 
         clone_polaris_big_if_required(model_args)
         rtl_utils.rtl_tests.copy_partial_src(rtl_args)
+        rtl_utils.rtl_tests.write_rtl_git_commit_id(rtl_args)
         update_assembly_yaml_if_required(rtl_args, model_args)
 
     @staticmethod
