@@ -377,6 +377,7 @@ class polaris_big_tests:
         cfg_dict = dict()
         cfg_dict["enableSync"]     = model_args[key_model_cfg_enable_sync]
         cfg_dict["numTriscCores"]  = 1
+        cfg_dict["maxNumThreadsperNeoCore"] = 4 # TODO: this needs to be come from elf file architecture.
         cfg_dict["orderScheme"]    = model_args[key_model_cfg_order_scheme]
         cfg_dict["risc.cpi"]       = model_args[key_model_cfg_risc_cpi]
         cfg_dict["latency_l1"]     = model_args[key_model_cfg_latency_l1]
