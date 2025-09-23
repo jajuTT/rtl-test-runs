@@ -246,14 +246,14 @@ class test_names:
         def copy_infra_dir(args):
             assert isinstance(args, dict), "- error: expected args to be a dict"
             key_force = "force"
-            key_hostname = "hostname"
             key_local_root_dir = "local_root_dir"
             key_local_root_dir_path = "local_root_dir_path"
-            key_port = "port"
             key_project_yaml = "project.yaml"
             key_remote_root_dir = "remote_root_dir"
             key_remote_root_dir_path = "remote_root_dir_path"
-            key_username = "username"
+            key_copy_server_hostname = "copy_server_hostname"
+            key_copy_server_username = "copy_server_username"
+            key_copy_server_port = "copy_server_port"
 
             for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_")]:
                 assert key in args.keys(), f"- error: {key} not found in given args dict"
@@ -269,9 +269,9 @@ class test_names:
             if not os.path.exists(local_infra_dir_incl_path):
                 remote_infra_dir_incl_path = os.path.join(remote_root_dir_incl_path, infra_str)
                 copy.copy_dir_from_remote_to_local(
-                    hostname = args[key_hostname],
-                    username = args[key_username],
-                    port = args[key_port],
+                    hostname = args[key_copy_server_hostname],
+                    username = args[key_copy_server_username],
+                    port = args[key_copy_server_port],
                     remote_dir = remote_infra_dir_incl_path,
                     local_dir = local_infra_dir_incl_path)
 
@@ -360,6 +360,9 @@ class rtl_tests:
         key_local_root_dir       = "local_root_dir"
         key_local_root_dir_path  = "local_root_dir_path"
         key_rtl_tag              = "rtl_tag"
+        key_copy_server_hostname = "copy_server_hostname"
+        key_copy_server_username  = "copy_server_username"
+        key_copy_server_port      = "copy_server_port"
 
         for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_")]:
             assert key in args.keys(), f"- error: {key} not found in given args dict"
@@ -385,24 +388,31 @@ class rtl_tests:
                 check_remote_files = True
 
         if check_remote_files:
-            hostname = args[key_hostname]
-            username = args[key_username]
-            port     = args[key_port]
+            hostname = args[key_copy_server_hostname]
+            username = args[key_copy_server_username]
+            port = args[key_copy_server_port]
+
             if not hostname or not username or not port:
-                print(f"- no hostname, username or port specified, test {test} will not be executed on RTL environment")
+                hostname = args[key_hostname]
+                username = args[key_username]
+                port     = args[key_port]
+
+            if not hostname or not username or not port:
+                print(f"- no hostname, username or port specified, can not check status of test {test}, returning")
                 return
 
+            remote_root_dir_incl_path        = os.path.join(args[key_remote_root_dir_path], args[key_remote_root_dir])
+            local_root_dir_incl_path         = os.path.join(args[key_local_root_dir_path], args[key_local_root_dir])
+            remote_log_file_dir              = os.path.join(remote_root_dir_incl_path, rel_log_file_dir)
+            remote_log_file_incl_path        = os.path.join(remote_log_file_dir, log_file)
+            remote_sim_result_yaml_incl_path = os.path.join(remote_log_file_dir, args[key_sim_result_yaml])
+
+            is_test_status_pass = False
             with fabric.Connection(
                 host = hostname,
                 user = username,
                 port = port) as conn:
-                remote_root_dir_incl_path        = os.path.join(args[key_remote_root_dir_path], args[key_remote_root_dir])
-                local_root_dir_incl_path         = os.path.join(args[key_local_root_dir_path], args[key_local_root_dir])
-                remote_log_file_dir              = os.path.join(remote_root_dir_incl_path, rel_log_file_dir)
-                remote_log_file_incl_path        = os.path.join(remote_log_file_dir, log_file)
-                remote_sim_result_yaml_incl_path = os.path.join(remote_log_file_dir, args[key_sim_result_yaml])
 
-                is_test_status_pass = False
                 with conn.sftp() as sftp:
                     if args[key_force]:
                         with contextlib.suppress(FileNotFoundError):
@@ -414,28 +424,45 @@ class rtl_tests:
                         assert args[key_sim_result_yaml_key_result] in data.keys(), f"- error: key {args[key_sim_result_yaml_key_result]} not found in file {remote_sim_result_yaml_incl_path} on {conn.host}"
                         is_test_status_pass = data[args[key_sim_result_yaml_key_result]] == args[key_sim_result_yaml_key_result_val_PASS]
 
-                if not is_test_status_pass:
-                    with conn.cd(remote_root_dir_incl_path):
-                        cmds = []
-                        cmds.append(f"pwd")
-                        if args[key_rtl_tag] in set(["feb19", "mar18"]):
-                            cmds.append(f"source SETUP.cctb.sh")
-                        else:
-                            cmds.append(f"source SETUP.cctb.local.sh")
-                        cmds.append(f"mkdir -p {remote_log_file_dir}")
-                        cmds.append(f"rsim run_test --test {test} > {remote_log_file_incl_path} 2>&1")
+            if (not is_test_status_pass):
+                hostname = args[key_hostname]
+                username = args[key_username]
+                port     = args[key_port]
 
-                        cmd = ' && '.join(cmds)
-                        print(f"- test ID {test_id}. executing command {cmd} on server {hostname}, port {port}")
-                        result = conn.run(cmd, warn = True, pty = True, hide = True) # warn: yes, move to next
-
-                        if result.failed:
-                            print(f"- test {test!r} execuition failed")
+                if not hostname or not username or not port:
+                    print(f"- WARNING: while test {test} status is not pass, no hostname, username or port specified to re-run the test.")
                 else:
-                    print(f"- test ID {test_id}. test: {test!r}. pass: {is_test_status_pass}")
+                    with fabric.Connection(
+                        host = hostname,
+                        user = username,
+                        port = port) as conn:
 
-                # copy data
-                copy.copy_dir_from_remote_to_local(hostname, username, port, remote_log_file_dir, os.path.join(local_root_dir_incl_path, rel_log_file_dir))
+                        with conn.cd(remote_root_dir_incl_path):
+                            cmds = []
+                            cmds.append(f"pwd")
+                            if args[key_rtl_tag] in set(["feb19", "mar18"]):
+                                cmds.append(f"source SETUP.cctb.sh")
+                            else:
+                                cmds.append(f"source SETUP.cctb.local.sh")
+                            cmds.append(f"mkdir -p {remote_log_file_dir}")
+                            cmds.append(f"rsim run_test --test {test} > {remote_log_file_incl_path} 2>&1")
+
+                            cmd = ' && '.join(cmds)
+                            print(f"- test ID {test_id}. executing command {cmd} on server {hostname}, port {port}")
+                            result = conn.run(cmd, warn = True, pty = True, hide = True) # warn: yes, move to next
+
+                            if result.failed:
+                                print(f"- test {test!r} execuition failed")
+            else:
+                print(f"- test ID {test_id}. test: {test!r}. pass: {is_test_status_pass}")
+
+            # copy data
+            copy.copy_dir_from_remote_to_local(
+                hostname=args[key_copy_server_hostname],
+                username=args[key_copy_server_username],
+                port=args[key_copy_server_port],
+                remote_dir=remote_log_file_dir,
+                local_dir=os.path.join(local_root_dir_incl_path, rel_log_file_dir))
 
     @staticmethod
     def execute_tests(tests, args):
@@ -455,15 +482,15 @@ class rtl_tests:
     def copy_partial_src(args):
         assert isinstance(args, dict), "- error: expected args to be a dict"
         key_force = "force"
-        key_hostname = "hostname"
         key_local_root_dir = "local_root_dir"
         key_local_root_dir_path = "local_root_dir_path"
         key_num_processes = "num_processes"
-        key_port = "port"
         key_remote_root_dir = "remote_root_dir"
         key_remote_root_dir_path = "remote_root_dir_path"
         key_src_dir = "src_dir"
-        key_username = "username"
+        key_copy_server_hostname = "copy_server_hostname"
+        key_copy_server_username  = "copy_server_username"
+        key_copy_server_port      = "copy_server_port"
 
         for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_")]:
             assert key in args.keys(), f"- error: {key} not found in given args dict"
@@ -481,22 +508,21 @@ class rtl_tests:
         if num_processes > 0:
             with multiprocessing.Pool(processes = num_processes) as pool:
                 pool.starmap(copy.copy_dir_from_remote_to_local, [(
-                    args[key_hostname],
-                    args[key_username],
-                    args[key_port],
+                    args[key_copy_server_hostname],
+                    args[key_copy_server_username],
+                    args[key_copy_server_port],
                     os.path.join(remote_src_dir_incl_path, dir_name),
                     os.path.join(local_src_dir_incl_path, dir_name)) for dir_name in dirs_to_copy])
 
     @staticmethod
     def get_git_commit_id(args, file_to_read):
-        key_commit_id = "rtl_git_commit_id"
-        key_hostname = "hostname"
         key_local_root_dir = "local_root_dir"
         key_local_root_dir_path = "local_root_dir_path"
-        key_port = "port"
         key_remote_root_dir = "remote_root_dir"
         key_remote_root_dir_path = "remote_root_dir_path"
-        key_username = "username"
+        key_copy_server_hostname = "copy_server_hostname"
+        key_copy_server_username  = "copy_server_username"
+        key_copy_server_port      = "copy_server_port"
 
         for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_")]:
             assert key in args.keys(), f"- error: {key} not found in given rtl args dict"
@@ -510,11 +536,11 @@ class rtl_tests:
         else:
             path = os.path.join(args[key_remote_root_dir_path], args[key_remote_root_dir])
 
-            with fabric.Connection(args[key_hostname], user = args[key_username], port = args[key_port]) as conn:
+            with fabric.Connection(args[key_copy_server_hostname], user = args[key_copy_server_username], port = args[key_copy_server_port]) as conn:
                 cmd = f"git -C {path} rev-parse --short HEAD"
                 result = conn.run(cmd, hide=True)
                 if result.exited:
-                    raise Exception(f"- error: could not execute {cmd} on server {args[key_hostname]}.")
+                    raise Exception(f"- error: could not execute {cmd} on server {args[key_copy_server_hostname]}.")
 
                 return result.stdout.strip()
 

@@ -295,6 +295,7 @@ def get_rtl_data_path_from_rtl_tag(tag):
         case "mar18" : return "/proj_tensix/user_dev/sjaju/work/mar/18"
         case "jul1"  : return "/proj_tensix/user_dev/sjaju/work/july/01"
         case "jul27" : return "/proj_tensix/user_dev/sjaju/work/july/27"
+        case "sep23" : return "/proj_tensix/user_dev/sjaju/work/sep/23"
         case _       :
             month_str =  datetime.datetime.now().strftime('%B').lower()[0:3]
             day_str   = f"{datetime.datetime.now().day}"
@@ -316,7 +317,7 @@ def get_yml_files_containing_tests(tag):
 
 if "__main__" == __name__:
     rtl_args = dict()
-    rtl_args["rtl_tag"] = "jul27"
+    rtl_args["rtl_tag"] = "sep23"
     path = get_rtl_data_path_from_rtl_tag(rtl_args["rtl_tag"])
     if isinstance(path, tuple):
         rtl_args["rtl_tag"] = path[0]
@@ -356,6 +357,10 @@ if "__main__" == __name__:
     rtl_args["remote_root_dir_path"]     = path
     rtl_args["local_root_dir_path"]      = os.getcwd()
     rtl_args["local_root_dir"]           = f"from-{rtl_args['remote_root_dir']}-{rtl_args['rtl_tag']}"
+
+    rtl_args['copy_server_hostname'] = "auslogo2"
+    rtl_args['copy_server_username'] = rtl_args["username"]
+    rtl_args['copy_server_port']     = 22
 
     polaris_big_args = dict()
     polaris_big_args["cfg_enable_shared_l1"]         = 1
@@ -414,6 +419,7 @@ if "__main__" == __name__:
     print("- need_ird_instance: ", need_ird_instance)
 
     rtl_utils.copy.safe_connection(host = rtl_args["ird_server"], user = rtl_args["username"], connect_kwargs = {"key_filename": rtl_args["ssh_key_file"]})
+    rtl_utils.copy.safe_connection(host = rtl_args["copy_server_hostname"], user = rtl_args["copy_server_username"], connect_kwargs = {"key_filename": rtl_args["ssh_key_file"]})
 
     if need_ird_instance:
         selID, machine, port = reserve_tensix_ird_instance(
