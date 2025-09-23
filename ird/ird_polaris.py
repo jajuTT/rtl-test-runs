@@ -18,6 +18,7 @@ import rtl_utils
 import shlex
 import status_utils
 import sys
+import create_minimal_rtl_data_set
 
 def get_ird_reservations_list(username = getpass.getuser(), hostname = "yyz-ird", key_file_name = os.path.expanduser("~/.ssh/id_ed25519")):
     with fabric.Connection(
@@ -444,9 +445,12 @@ if "__main__" == __name__:
     for idx, test in enumerate(sorted(tests)):
         print(f"  - {idx:>{int(math.log(len(tests))) + 1}}. {test}")
 
-    rtl_utils.rtl_tests.execute_tests(tests, rtl_args)
-    polaris_utils.polaris_tests.execute_tests(tests, rtl_args, polaris_big_args)
-    status_utils.print_status(tests, rtl_args, polaris_big_args)
+    # rtl_utils.rtl_tests.execute_tests(tests, rtl_args)
+    # polaris_utils.polaris_tests.execute_tests(tests, rtl_args, polaris_big_args)
+    # status_utils.print_status(tests, rtl_args, polaris_big_args)
+
+    rtl_utils.rtl_data_copy.copy_rtl_data(rtl_args)
+    create_minimal_rtl_data_set.get_minimal_rtl_data(rtl_args, polaris_big_args)
 
     if need_ird_instance:
         ird_release(selID)

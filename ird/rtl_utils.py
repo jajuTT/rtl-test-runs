@@ -3,6 +3,7 @@
 import collections
 import contextlib
 import datetime
+import typing
 import fabric
 import functools
 import getpass
@@ -87,7 +88,6 @@ class copy:
             cmd = f"rsync -az -e 'ssh -p {port}' {username}@{hostname}:{remote_dir} {parent_dir_path}"
             print(f"- executing command: {cmd}")
             conn.local(cmd, hide = True)
-
 class test_names:
     @staticmethod
     def get_file_names_incl_path(root_dir, file_name):
@@ -243,58 +243,6 @@ class test_names:
 
     @staticmethod
     def get_tests(args):
-        def copy_infra_dir(args):
-            assert isinstance(args, dict), "- error: expected args to be a dict"
-            key_force = "force"
-            key_local_root_dir = "local_root_dir"
-            key_local_root_dir_path = "local_root_dir_path"
-            key_project_yaml = "project.yaml"
-            key_remote_root_dir = "remote_root_dir"
-            key_remote_root_dir_path = "remote_root_dir_path"
-            key_copy_server_hostname = "copy_server_hostname"
-            key_copy_server_username = "copy_server_username"
-            key_copy_server_port = "copy_server_port"
-
-            for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_")]:
-                assert key in args.keys(), f"- error: {key} not found in given args dict"
-
-            remote_root_dir_incl_path = os.path.join(args[key_remote_root_dir_path], args[key_remote_root_dir])
-            local_root_dir_incl_path = os.path.join(args[key_local_root_dir_path], args[key_local_root_dir])
-
-            infra_str = "infra"
-            local_infra_dir_incl_path = os.path.join(local_root_dir_incl_path, infra_str)
-            if args[key_force] and os.path.exists(local_infra_dir_incl_path):
-                shutil.rmtree(local_infra_dir_incl_path)
-
-            if not os.path.exists(local_infra_dir_incl_path):
-                remote_infra_dir_incl_path = os.path.join(remote_root_dir_incl_path, infra_str)
-                copy.copy_dir_from_remote_to_local(
-                    hostname = args[key_copy_server_hostname],
-                    username = args[key_copy_server_username],
-                    port = args[key_copy_server_port],
-                    remote_dir = remote_infra_dir_incl_path,
-                    local_dir = local_infra_dir_incl_path)
-
-                project_yaml_name = args[key_project_yaml]
-                project_yamls = []
-                for pwd, _, files in os.walk(local_infra_dir_incl_path):
-                    for file in files:
-                        if file == project_yaml_name:
-                            project_yamls.append(os.path.join(pwd, file))
-
-                if 0 == len(project_yamls):
-                    raise Exception(f"- {local_infra_dir_incl_path} does not contain {project_yaml_name} file")
-                elif 1 == len(project_yamls):
-                    pass
-                else:
-                    msg = f"- error: multiple files with name {project_yaml_name} found. the files are:"
-                    for ele in project_yamls:
-                        msg += f"  - {ele}\n"
-
-                    raise Exception(msg.rstrip())
-
-            return local_infra_dir_incl_path
-
         assert isinstance(args, dict), "- error: expected args to be a dict"
         key_project_yaml = "project.yaml"
         key_yaml_files = "yaml_files"
@@ -302,7 +250,7 @@ class test_names:
         for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_")]:
             assert key in args.keys(), f"- error: {key} not found in given args dict"
 
-        local_infra_dir_incl_path = copy_infra_dir(args)
+        local_infra_dir_incl_path = rtl_data_copy.copy_infra_dir(args)
         assert os.path.isdir(local_infra_dir_incl_path), f"- error: {local_infra_dir_incl_path} either doesn't exist or is not a directory."
 
         key_suites = "suites"
@@ -339,7 +287,6 @@ class test_names:
             m_tests.update(m_tests_per_file)
 
         return m_tests
-
 class rtl_tests:
     @staticmethod
     def execute_test(test_id, test, args):
@@ -478,41 +425,41 @@ class rtl_tests:
         with multiprocessing.Pool(processes = num_processes) as pool:
             test_results = pool.starmap(rtl_tests.execute_test, [(idx, test, args) for idx, test in enumerate(tests)])
 
-    @staticmethod
-    def copy_partial_src(args):
-        assert isinstance(args, dict), "- error: expected args to be a dict"
-        key_force = "force"
-        key_local_root_dir = "local_root_dir"
-        key_local_root_dir_path = "local_root_dir_path"
-        key_num_processes = "num_processes"
-        key_remote_root_dir = "remote_root_dir"
-        key_remote_root_dir_path = "remote_root_dir_path"
-        key_src_dir = "src_dir"
-        key_copy_server_hostname = "copy_server_hostname"
-        key_copy_server_username  = "copy_server_username"
-        key_copy_server_port      = "copy_server_port"
+    # @staticmethod
+    # def copy_partial_src(args):
+    #     assert isinstance(args, dict), "- error: expected args to be a dict"
+    #     key_force = "force"
+    #     key_local_root_dir = "local_root_dir"
+    #     key_local_root_dir_path = "local_root_dir_path"
+    #     key_num_processes = "num_processes"
+    #     key_remote_root_dir = "remote_root_dir"
+    #     key_remote_root_dir_path = "remote_root_dir_path"
+    #     key_src_dir = "src_dir"
+    #     key_copy_server_hostname = "copy_server_hostname"
+    #     key_copy_server_username  = "copy_server_username"
+    #     key_copy_server_port      = "copy_server_port"
 
-        for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_")]:
-            assert key in args.keys(), f"- error: {key} not found in given args dict"
+    #     for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_")]:
+    #         assert key in args.keys(), f"- error: {key} not found in given args dict"
 
-        remote_src_dir_incl_path = os.path.join(args[key_remote_root_dir_path], args[key_remote_root_dir], args[key_src_dir])
-        local_src_dir_incl_path = os.path.join(args[key_local_root_dir_path], args[key_local_root_dir], args[key_src_dir])
+    #     remote_src_dir_incl_path = os.path.join(args[key_remote_root_dir_path], args[key_remote_root_dir], args[key_src_dir])
+    #     local_src_dir_incl_path = os.path.join(args[key_local_root_dir_path], args[key_local_root_dir], args[key_src_dir])
 
-        dirs_to_copy = ["firmware", "hardware", "meta", "verif/tensix/tests"]
-        dirs_to_copy = [dir_name for dir_name in dirs_to_copy if (not os.path.exists(os.path.join(local_src_dir_incl_path, dir_name))) or args[key_force]]
-        for dir_name in dirs_to_copy:
-            if not os.path.exists(os.path.join(local_src_dir_incl_path, dir_name)):
-                print(f"- directory {dir_name} does not exist in {local_src_dir_incl_path}")
-        num_processes = min(args[key_num_processes], len(dirs_to_copy))
+    #     dirs_to_copy = ["firmware", "hardware", "meta", "verif/tensix/tests"]
+    #     dirs_to_copy = [dir_name for dir_name in dirs_to_copy if (not os.path.exists(os.path.join(local_src_dir_incl_path, dir_name))) or args[key_force]]
+    #     for dir_name in dirs_to_copy:
+    #         if not os.path.exists(os.path.join(local_src_dir_incl_path, dir_name)):
+    #             print(f"- directory {dir_name} does not exist in {local_src_dir_incl_path}")
+    #     num_processes = min(args[key_num_processes], len(dirs_to_copy))
 
-        if num_processes > 0:
-            with multiprocessing.Pool(processes = num_processes) as pool:
-                pool.starmap(copy.copy_dir_from_remote_to_local, [(
-                    args[key_copy_server_hostname],
-                    args[key_copy_server_username],
-                    args[key_copy_server_port],
-                    os.path.join(remote_src_dir_incl_path, dir_name),
-                    os.path.join(local_src_dir_incl_path, dir_name)) for dir_name in dirs_to_copy])
+    #     if num_processes > 0:
+    #         with multiprocessing.Pool(processes = num_processes) as pool:
+    #             pool.starmap(copy.copy_dir_from_remote_to_local, [(
+    #                 args[key_copy_server_hostname],
+    #                 args[key_copy_server_username],
+    #                 args[key_copy_server_port],
+    #                 os.path.join(remote_src_dir_incl_path, dir_name),
+    #                 os.path.join(local_src_dir_incl_path, dir_name)) for dir_name in dirs_to_copy])
 
     @staticmethod
     def get_git_commit_id(args, file_to_read):
@@ -596,6 +543,193 @@ class rtl_tests:
 
             with open(file_to_write, "w") as f:
                 f.write(rtl_args[key_commit_id])
+
+class rtl_data_copy:
+    @staticmethod
+    def copy_infra_dir(args):
+            assert isinstance(args, dict), "- error: expected args to be a dict"
+            key_force = "force"
+            key_local_root_dir = "local_root_dir"
+            key_local_root_dir_path = "local_root_dir_path"
+            key_project_yaml = "project.yaml"
+            key_remote_root_dir = "remote_root_dir"
+            key_remote_root_dir_path = "remote_root_dir_path"
+            key_copy_server_hostname = "copy_server_hostname"
+            key_copy_server_username = "copy_server_username"
+            key_copy_server_port = "copy_server_port"
+
+            for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_")]:
+                assert key in args.keys(), f"- error: {key} not found in given args dict"
+
+            remote_root_dir_incl_path = os.path.join(args[key_remote_root_dir_path], args[key_remote_root_dir])
+            local_root_dir_incl_path = os.path.join(args[key_local_root_dir_path], args[key_local_root_dir])
+
+            infra_str = "infra"
+            local_infra_dir_incl_path = os.path.join(local_root_dir_incl_path, infra_str)
+            if args[key_force] and os.path.exists(local_infra_dir_incl_path):
+                shutil.rmtree(local_infra_dir_incl_path)
+
+            if not os.path.exists(local_infra_dir_incl_path):
+                remote_infra_dir_incl_path = os.path.join(remote_root_dir_incl_path, infra_str)
+                copy.copy_dir_from_remote_to_local(
+                    hostname = args[key_copy_server_hostname],
+                    username = args[key_copy_server_username],
+                    port = args[key_copy_server_port],
+                    remote_dir = remote_infra_dir_incl_path,
+                    local_dir = local_infra_dir_incl_path)
+
+                project_yaml_name = args[key_project_yaml]
+                project_yamls = []
+                for pwd, _, files in os.walk(local_infra_dir_incl_path):
+                    for file in files:
+                        if file == project_yaml_name:
+                            project_yamls.append(os.path.join(pwd, file))
+
+                if 0 == len(project_yamls):
+                    raise Exception(f"- {local_infra_dir_incl_path} does not contain {project_yaml_name} file")
+                elif 1 == len(project_yamls):
+                    pass
+                else:
+                    msg = f"- error: multiple files with name {project_yaml_name} found. the files are:"
+                    for ele in project_yamls:
+                        msg += f"  - {ele}\n"
+
+                    raise Exception(msg.rstrip())
+
+            return local_infra_dir_incl_path
+
+    @staticmethod
+    def copy_partial_src(args):
+        assert isinstance(args, dict), "- error: expected args to be a dict"
+        key_force = "force"
+        key_local_root_dir = "local_root_dir"
+        key_local_root_dir_path = "local_root_dir_path"
+        key_num_processes = "num_processes"
+        key_remote_root_dir = "remote_root_dir"
+        key_remote_root_dir_path = "remote_root_dir_path"
+        key_src_dir = "src_dir"
+        key_copy_server_hostname = "copy_server_hostname"
+        key_copy_server_username  = "copy_server_username"
+        key_copy_server_port      = "copy_server_port"
+
+        for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_")]:
+            assert key in args.keys(), f"- error: {key} not found in given args dict"
+
+        remote_src_dir_incl_path = os.path.join(args[key_remote_root_dir_path], args[key_remote_root_dir], args[key_src_dir])
+        local_src_dir_incl_path = os.path.join(args[key_local_root_dir_path], args[key_local_root_dir], args[key_src_dir])
+
+        dirs_to_copy = ["firmware", "hardware", "meta", "verif/tensix/tests"]
+        dirs_to_copy = [dir_name for dir_name in dirs_to_copy if (not os.path.exists(os.path.join(local_src_dir_incl_path, dir_name))) or args[key_force]]
+        for dir_name in dirs_to_copy:
+            if not os.path.exists(os.path.join(local_src_dir_incl_path, dir_name)):
+                print(f"- directory {dir_name} does not exist in {local_src_dir_incl_path}")
+        num_processes = min(args[key_num_processes], len(dirs_to_copy))
+
+        if num_processes > 0:
+            with multiprocessing.Pool(processes = num_processes) as pool:
+                pool.starmap(copy.copy_dir_from_remote_to_local, [(
+                    args[key_copy_server_hostname],
+                    args[key_copy_server_username],
+                    args[key_copy_server_port],
+                    os.path.join(remote_src_dir_incl_path, dir_name),
+                    os.path.join(local_src_dir_incl_path, dir_name)) for dir_name in dirs_to_copy])
+                
+    @staticmethod
+    def copy_rtl_rsim_debug_test_data(test: str, rtl_args: dict[str, typing.Any]) -> None:
+        assert isinstance(rtl_args, dict), "- error: expected rtl_args to be a dict"
+        key_local_root_dir = "local_root_dir"
+        key_local_root_dir_path = "local_root_dir_path"
+        key_remote_root_dir = "remote_root_dir"
+        key_remote_root_dir_path = "remote_root_dir_path"
+        key_copy_server_hostname = "copy_server_hostname"
+        key_copy_server_username = "copy_server_username"
+        key_copy_server_port = "copy_server_port"
+        key_debug_dir_path = "debug_dir_path"
+        key_debug_dir = "debug_dir"
+        key_test_dir_suffix = "test_dir_suffix"
+
+        for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_")]:
+            assert key in rtl_args.keys(), f"- error: {key} not found in given rtl_args dict"
+
+        rel_test_dir_incl_path = os.path.join(rtl_args[key_debug_dir_path], rtl_args[key_debug_dir], test + rtl_args[key_test_dir_suffix])
+
+        remote_root_dir_incl_path = os.path.join(rtl_args[key_remote_root_dir_path], rtl_args[key_remote_root_dir])
+        local_root_dir_incl_path  = os.path.join(rtl_args[key_local_root_dir_path], rtl_args[key_local_root_dir])
+
+        src_path = os.path.join(remote_root_dir_incl_path, rel_test_dir_incl_path)
+        dest_path = os.path.join(local_root_dir_incl_path, rel_test_dir_incl_path)
+
+        if not os.path.exists(dest_path):
+            os.makedirs(dest_path, exist_ok = True)
+
+        # Copy RTL data from remote to local
+        copy.copy_dir_from_remote_to_local(
+            hostname=rtl_args[key_copy_server_hostname],
+            username=rtl_args[key_copy_server_username],
+            port=rtl_args[key_copy_server_port],
+            remote_dir=src_path,
+            local_dir=dest_path
+        )
+
+    @staticmethod
+    def copy_rtl_rsim_debug_dir(rtl_args: dict[str, typing.Any]) -> None:
+        assert isinstance(rtl_args, dict), "- error: expected rtl_args to be a dict"
+        key_local_root_dir = "local_root_dir"
+        key_local_root_dir_path = "local_root_dir_path"
+        key_remote_root_dir = "remote_root_dir"
+        key_remote_root_dir_path = "remote_root_dir_path"
+        key_copy_server_hostname = "copy_server_hostname"
+        key_copy_server_username = "copy_server_username"
+        key_copy_server_port = "copy_server_port"
+        key_debug_dir_path = "debug_dir_path"
+        key_debug_dir = "debug_dir"
+
+        for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_")]:
+            assert key in rtl_args.keys(), f"- error: {key} not found in given rtl_args dict"
+
+        rel_debug_dir_incl_path = os.path.join(rtl_args[key_debug_dir_path], rtl_args[key_debug_dir])
+
+        remote_root_dir_incl_path = os.path.join(rtl_args[key_remote_root_dir_path], rtl_args[key_remote_root_dir])
+        local_root_dir_incl_path  = os.path.join(rtl_args[key_local_root_dir_path], rtl_args[key_local_root_dir])
+
+        src_path = os.path.join(remote_root_dir_incl_path, rel_debug_dir_incl_path)
+        dest_path = os.path.join(local_root_dir_incl_path, rel_debug_dir_incl_path)
+
+        if not os.path.exists(dest_path):
+            os.makedirs(dest_path, exist_ok = True)
+
+        # Copy RTL data from remote to local
+        copy.copy_dir_from_remote_to_local(
+            hostname=rtl_args[key_copy_server_hostname],
+            username=rtl_args[key_copy_server_username],
+            port=rtl_args[key_copy_server_port],
+            remote_dir=src_path,
+            local_dir=dest_path
+        )
+
+    @staticmethod
+    def copy_rtl_rsim_debug_tests_data(tests: set[str], rtl_args: dict[str, typing.Any]) -> None:
+        assert isinstance(rtl_args, dict), "- error: expected rtl_args to be a dict"
+        assert isinstance(tests, (set, list, tuple)), "- error: expected tests to be a set/list/tuple"
+
+        num_processes = max(1, min(rtl_args["num_processes"], len(tests)))
+        num_processes = 8
+        print(f"- Number of RTL tests to copy debug data for:        {len(tests)}")
+        print(f"- Number of parallel processes to copy RTL data for: {num_processes}")
+
+        with multiprocessing.Pool(processes = num_processes) as pool:
+            pool.starmap(rtl_data_copy.copy_rtl_rsim_debug_test_data, [(test, rtl_args) for test in tests])
+
+    @staticmethod
+    def copy_rtl_data(rtl_args: dict[str, typing.Any]) -> None:
+        assert isinstance(rtl_args, dict), "- error: expected rtl_args to be a dict"
+        
+        rtl_data_copy.copy_infra_dir(rtl_args)
+        rtl_data_copy.copy_partial_src(rtl_args)
+        # tests = test_names.get_tests(rtl_args)
+        # rtl_data_copy.copy_rtl_rsim_debug_tests_data(tests, rtl_args)
+        rtl_data_copy.copy_rtl_rsim_debug_dir(rtl_args)
+        rtl_tests.write_rtl_git_commit_id(rtl_args)
 
 if "__main__" == __name__:
     pass
