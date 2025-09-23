@@ -27,7 +27,8 @@ def get_failure_bins():
         ["Timeout", "reached for pipe"],
         ["Timeout", "reached for valid check"],
         ["Too many resources to select from"],
-        ["Write Valid condition Invalid"]
+        ["Write Valid condition Invalid"], 
+        ["Can't find xmov in engine groups"],
     ]
 
     return sorted(bins)

@@ -2,8 +2,8 @@
 
 import os
 import sys
-sys.path.append("polaris_big")
-sys.path.append("polaris_big/ttsim/front/llk")
+sys.path.append("polaris")
+sys.path.append("polaris/ttsim/front/llk")
 
 import collections
 import contextlib
@@ -31,59 +31,10 @@ import t3sim_utils
 import tensix
 import yaml
 
-class polaris_big_tests:
+class polaris_tests:
     @staticmethod
     def check_and_update_isa_file(rtl_args, model_args):
-        # key_model_instruction_kind = "instruction_kind"
-        # key_model_instruction_sets_dir = "pb_instruction_sets_dir"
-        # key_model_root_dir = "pb_root_dir"
-        # key_model_root_dir_path = "pb_root_dir_path"
-        # key_rtl_isa_file_name = f"isa_file_name"
-        # key_rtl_local_root_dir = "local_root_dir"
-        # key_rtl_local_root_dir_path = "local_root_dir_path"
-
-        # for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_rtl_")]:
-        #     assert key in rtl_args.keys(), f"- error: {key} not found in given args dict"
-
-        # for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_t3sim_")]:
-        #     assert key in model_args.keys(), f"- error: {key} not found in given args dict"
-
-        # rtl_utils.rtl_tests.copy_partial_src(rtl_args)
-
-        # rtl_root_dir_incl_path = os.path.join(rtl_args[key_rtl_local_root_dir_path], rtl_args[key_rtl_local_root_dir])
-        # rtl_isa_file_name_incl_path = rtl_utils.test_names.get_file_name_incl_path(rtl_root_dir_incl_path, rtl_args[key_rtl_isa_file_name])
-        # if not os.path.isfile(rtl_isa_file_name_incl_path):
-        #     raise Exception(f"- error: could not find file {rtl_isa_file_name_incl_path}")
-
-        # polaris_big_dir_incl_path = os.path.join(model_args[key_model_root_dir_path], model_args[key_model_root_dir])
-        # polaris_big_isa_file_incl_path = [ele for ele in rtl_utils.test_names.get_file_names_incl_path(polaris_big_dir_incl_path, rtl_args[key_rtl_isa_file_name]) if os.path.join(model_args[key_model_instruction_kind], rtl_args[key_rtl_isa_file_name]) in ele]
-        # print("- polaris_big_dir_incl_path: ", polaris_big_dir_incl_path)
-        # print("- polaris_big_isa_file_incl_path: ", polaris_big_isa_file_incl_path)
-        # print()
-
-        # if 0 == len(polaris_big_isa_file_incl_path): # file doesn't exist.
-        #     instruction_sets_dir_incl_path = rtl_utils.test_names.get_dir_incl_path(polaris_big_dir_incl_path, model_args[key_model_instruction_sets_dir])
-        #     polaris_big_isa_dir_incl_path = os.path.join(instruction_sets_dir_incl_path, model_args[key_model_instruction_kind])
-        #     os.makedirs(polaris_big_isa_dir_incl_path, exist_ok = True)
-        #     shutil.copy(rtl_isa_file_name_incl_path, polaris_big_isa_dir_incl_path)
-
-        # elif 1 == len(polaris_big_isa_file_incl_path):
-        #     polaris_big_isa_file_incl_path = polaris_big_isa_file_incl_path[0]
-        #     if not os.path.isfile(rtl_isa_file_name_incl_path):
-        #         raise Exception(f"- error: could not find file {rtl_isa_file_name_incl_path}")
-
-        #     filecmp.clear_cache()
-        #     if not filecmp.cmp(rtl_isa_file_name_incl_path, polaris_big_isa_file_incl_path):
-        #         t3sim_utils.rename_with_timestamp(polaris_big_isa_file_incl_path)
-
-        #     shutil.copy(rtl_isa_file_name_incl_path, str(pathlib.Path(polaris_big_isa_file_incl_path).parent))
-
-        # else:
-        #     raise Exception(f"- error: found multiple isa files. binutils_isa_file_incl_path: {polaris_big_isa_file_incl_path}")
-
-    # @staticmethod
-    # def clone_polaris_big_and_update_assembly_yaml_if_required(rtl_args, t3sim_args, model_args):
-        def clone_polaris_big_if_required(args):
+        def clone_polaris_if_required(args):
             key_model_force = "force"
             key_model_git_branch = "model_git_branch"
             key_model_git_url = "model_git_url"
@@ -131,32 +82,32 @@ class polaris_big_tests:
             if not os.path.isfile(rtl_isa_file_name_incl_path):
                 raise Exception(f"- error: could not find file {rtl_isa_file_name_incl_path}")
 
-            polaris_big_dir_incl_path = os.path.join(model_args[key_model_root_dir_path], model_args[key_model_root_dir])
-            polaris_big_isa_file_incl_path = [ele for ele in rtl_utils.test_names.get_file_names_incl_path(polaris_big_dir_incl_path, rtl_args[key_rtl_isa_file_name]) if os.path.join(model_args[key_model_instruction_kind], rtl_args[key_rtl_isa_file_name]) in ele]
-            print("polaris_big_dir_incl_path: ", polaris_big_dir_incl_path)
-            print("polaris_big_isa_file_incl_path: ", polaris_big_isa_file_incl_path)
+            polaris_dir_incl_path = os.path.join(model_args[key_model_root_dir_path], model_args[key_model_root_dir])
+            polaris_isa_file_incl_path = [ele for ele in rtl_utils.test_names.get_file_names_incl_path(polaris_dir_incl_path, rtl_args[key_rtl_isa_file_name]) if os.path.join(model_args[key_model_instruction_kind], rtl_args[key_rtl_isa_file_name]) in ele]
+            print("polaris_dir_incl_path: ", polaris_dir_incl_path)
+            print("polaris_isa_file_incl_path: ", polaris_isa_file_incl_path)
 
-            if 0 == len(polaris_big_isa_file_incl_path): # file doesn't exist.
-                instruction_sets_dir_incl_path = rtl_utils.test_names.get_dir_incl_path(polaris_big_dir_incl_path, model_args[key_model_instruction_sets_dir])
-                polaris_big_isa_dir_incl_path = os.path.join(instruction_sets_dir_incl_path, model_args[key_model_instruction_kind])
-                os.makedirs(polaris_big_isa_dir_incl_path, exist_ok = True)
-                shutil.copy(rtl_isa_file_name_incl_path, polaris_big_isa_dir_incl_path)
+            if 0 == len(polaris_isa_file_incl_path): # file doesn't exist.
+                instruction_sets_dir_incl_path = rtl_utils.test_names.get_dir_incl_path(polaris_dir_incl_path, model_args[key_model_instruction_sets_dir])
+                polaris_isa_dir_incl_path = os.path.join(instruction_sets_dir_incl_path, model_args[key_model_instruction_kind])
+                os.makedirs(polaris_isa_dir_incl_path, exist_ok = True)
+                shutil.copy(rtl_isa_file_name_incl_path, polaris_isa_dir_incl_path)
 
-            elif 1 == len(polaris_big_isa_file_incl_path):
-                polaris_big_isa_file_incl_path = polaris_big_isa_file_incl_path[0]
+            elif 1 == len(polaris_isa_file_incl_path):
+                polaris_isa_file_incl_path = polaris_isa_file_incl_path[0]
                 if not os.path.isfile(rtl_isa_file_name_incl_path):
                     raise Exception(f"- error: could not find file {rtl_isa_file_name_incl_path}")
 
                 filecmp.clear_cache()
-                if not filecmp.cmp(rtl_isa_file_name_incl_path, polaris_big_isa_file_incl_path):
-                    t3sim_utils.rename_with_timestamp(polaris_big_isa_file_incl_path)
+                if not filecmp.cmp(rtl_isa_file_name_incl_path, polaris_isa_file_incl_path):
+                    t3sim_utils.rename_with_timestamp(polaris_isa_file_incl_path)
 
-                shutil.copy(rtl_isa_file_name_incl_path, str(pathlib.Path(polaris_big_isa_file_incl_path).parent))
+                shutil.copy(rtl_isa_file_name_incl_path, str(pathlib.Path(polaris_isa_file_incl_path).parent))
 
             else:
-                raise Exception(f"- error: found multiple isa files. binutils_isa_file_incl_path: {polaris_big_isa_file_incl_path}")
+                raise Exception(f"- error: found multiple isa files. binutils_isa_file_incl_path: {polaris_isa_file_incl_path}")
 
-        clone_polaris_big_if_required(model_args)
+        clone_polaris_if_required(model_args)
         rtl_utils.rtl_tests.copy_partial_src(rtl_args)
         rtl_utils.rtl_tests.write_rtl_git_commit_id(rtl_args)
         update_assembly_yaml_if_required(rtl_args, model_args)
@@ -255,82 +206,7 @@ class polaris_big_tests:
                                 input_neo[f"th{thread_id}Path"] = pwd1
                                 input_neo[f"th{thread_id}Elf"] = file
 
-                    # if "t6-quas-n1-ttx-recip-Float16_b-upk-to-dest-llk" == test:
-                    #     input_neo["th3Path"] = input_neo["th2Path"]
-                    #     input_neo["th3Elf"]  = input_neo["th2Elf"]
-
-                    #     # move thread 1 to thread 2.
-                    #     input_neo["th2Path"] = input_neo["th1Path"]
-                    #     input_neo["th2Elf"]  = input_neo["th1Elf"]
-
-                    #     # make thread 1 empty
-                    #     input_neo[f"th1Path"] = ""
-                    #     input_neo[f"th1Elf"]  = ""
-                    # else:
-                    #     input_neo["th3Path"] = input_neo["th2Path"]
-                    #     input_neo["th3Elf"]  = input_neo["th2Elf"]
-
-                    #     # make thread 2 empty
-                    #     input_neo[f"th2Path"] = ""
-                    #     input_neo[f"th2Elf"]  = ""
-
             input_cfg[tc_key] = {key : input_neo[key] for key in sorted(input_neo.keys())}
-
-        # if "dvalid" in test:
-        #     msg = f"{test} contains dvalid.\n"
-        #     msg += "in the inputcfg we are going to make the following changes.\n"
-        #     msg += "1. check that it has 3 threads, change it to 4 threads\n"
-        #     msg += "1. move thread 2 path and files to thread 3\n"
-        #     msg += "1. leave thread 2 empty\n"
-
-        #     print(msg)
-
-        #     for neo_id in range(num_neos):
-        #         tc_key = f"tc{neo_id}"
-
-        #         # if 3 != input_cfg[tc_key]["numThreads"]:
-        #         #     raise Exception(f"- error: expected numThreads to be 3, received {input_cfg[tc_key]["numThreads"]}. Core: {tc_key}")
-
-        #         # input_cfg[tc_key]["numThreads"] = 4 # change it to 4.
-
-        #         # add thread 3
-        #         input_cfg[tc_key]["th3Path"] = input_cfg[tc_key]["th2Path"]
-        #         input_cfg[tc_key]["th3Elf"]  = input_cfg[tc_key]["th2Elf"]
-
-        #         # make thread 2 empty
-        #         input_cfg[tc_key][f"th2Path"] = ""
-        #         input_cfg[tc_key][f"th2Elf"]  = ""
-
-        # if "t6-quas-n1-ttx-recip-Float16_b-upk-to-dest-llk" == test:
-        #     msg = f"{test} needs thread ID changes.\n"
-        #     msg += "in the inputcfg we are going to make the following changes.\n"
-        #     msg += "1. check that it has 3 threads, change it to 4 threads\n"
-        #     msg += "1. move thread 2 path and files to thread 3\n"
-        #     msg += "1. move thread 1 path and files to thread 2\n"
-        #     msg += "1. leave thread 1 empty\n"
-
-        #     print(msg.rstrip())
-
-        #     for neo_id in range(num_neos):
-        #         tc_key = f"tc{neo_id}"
-
-        #         # if 3 != input_cfg[tc_key]["numThreads"]:
-        #         #     raise Exception(f"- error: expected numThreads to be 3, received {input_cfg[tc_key]["numThreads"]}. Core: {tc_key}")
-
-        #         # input_cfg[tc_key]["numThreads"] = 4 # change it to 4.
-
-        #         # add thread 3. move thread 2 to thread 3.
-        #         input_cfg[tc_key]["th3Path"] = input_cfg[tc_key]["th2Path"]
-        #         input_cfg[tc_key]["th3Elf"]  = input_cfg[tc_key]["th2Elf"]
-
-        #         # move thread 1 to thread 2.
-        #         input_cfg[tc_key]["th2Path"] = input_cfg[tc_key]["th1Path"]
-        #         input_cfg[tc_key]["th2Elf"]  = input_cfg[tc_key]["th1Elf"]
-
-        #         # make thread 1 empty
-        #         input_cfg[tc_key][f"th1Path"] = ""
-        #         input_cfg[tc_key][f"th1Elf"]  = ""
-
 
         input_cfg_dict["description"] = dict()
 
@@ -349,7 +225,7 @@ class polaris_big_tests:
         for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_model_")]:
             assert key in model_args.keys(), f"- error: {key} not found in given rtl_args dict"
 
-        input_cfg_dict = polaris_big_tests.get_inputcfg(test_id, test, rtl_args, model_args)
+        input_cfg_dict = polaris_tests.get_inputcfg(test_id, test, rtl_args, model_args)
 
         cfg_dir_incl_path = os.path.join(model_args[key_root_dir_path], model_args[key_root_dir], model_args[key_cfg_dir])
         if not os.path.isdir(cfg_dir_incl_path):
@@ -399,7 +275,7 @@ class polaris_big_tests:
         for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_model_")]:
             assert key in model_args.keys(), f"- error: {key} not found in given model_args dict"
 
-        cfg_dict = polaris_big_tests.get_default_cfg(model_args)
+        cfg_dict = polaris_tests.get_default_cfg(model_args)
         cfg_dir_incl_path = os.path.join(model_args[key_model_root_dir_path], model_args[key_model_root_dir], model_args[key_model_cfg_dir])
         if not os.path.isdir(cfg_dir_incl_path):
             os.makedirs(cfg_dir_incl_path, exist_ok = True)
@@ -451,8 +327,8 @@ class polaris_big_tests:
         for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_model_")]:
             assert key in model_args.keys(), f"- error: {key} not found in given rtl_args dict"
 
-        inputcfg_file_name = polaris_big_tests.write_inputcfg_file(test_id, test, rtl_args, model_args)
-        # cfg_file_name = polaris_big_tests.write_cfg_file(test_id, test, rtl_args, model_args)
+        inputcfg_file_name = polaris_tests.write_inputcfg_file(test_id, test, rtl_args, model_args)
+        # cfg_file_name = polaris_tests.write_cfg_file(test_id, test, rtl_args, model_args)
 
         pb_dir_incl_path = os.path.join(model_args[key_model_root_dir_path], model_args[key_model_root_dir])
         odir_incl_path = os.path.join(pb_dir_incl_path, model_args[key_model_odir])
@@ -501,13 +377,13 @@ class polaris_big_tests:
         for key in [var_value for var_name, var_value in locals().items() if var_name.startswith("key_")]:
             assert key in model_args.keys(), f"- error: {key} not found in given args dict"
 
-        polaris_big_tests.check_and_update_isa_file(rtl_args, model_args)
-        model_args['cfg'] = polaris_big_tests.write_default_cfg_file(model_args)
-        model_args['memory_map'] = polaris_big_tests.write_default_memory_map_file(rtl_args, model_args)
+        polaris_tests.check_and_update_isa_file(rtl_args, model_args)
+        model_args['cfg'] = polaris_tests.write_default_cfg_file(model_args)
+        model_args['memory_map'] = polaris_tests.write_default_memory_map_file(rtl_args, model_args)
 
         num_processes = min([rtl_args[key_num_processes], model_args[key_num_processes], len(tests)])
-        print(f"- Number of tests to execute via model:                      {len(tests)}")
-        print(f"- Number of parallel processes to execute polaris_big tests: {num_processes}")
+        print(f"- Number of tests to execute via model:                  {len(tests)}")
+        print(f"- Number of parallel processes to execute polaris tests: {num_processes}")
 
         with multiprocessing.Pool(processes = num_processes) as pool:
-            test_results = pool.starmap(polaris_big_tests.execute_test, [(idx, test, rtl_args, model_args) for idx, test in enumerate(sorted(tests))])
+            test_results = pool.starmap(polaris_tests.execute_test, [(idx, test, rtl_args, model_args) for idx, test in enumerate(sorted(tests))])

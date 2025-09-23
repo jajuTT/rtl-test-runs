@@ -12,7 +12,7 @@ import math
 import multiprocessing
 import os
 import paramiko
-import polaris_big_utils
+import polaris_utils
 import re
 import rtl_utils
 import shlex
@@ -376,7 +376,7 @@ if "__main__" == __name__:
     polaris_big_args["model_cfg_file_prefix"]        = "cfg"
     polaris_big_args["model_memory_map_file_prefix"] = "memory_map"
     polaris_big_args["model_git_branch"]             = "main" # pb branch
-    polaris_big_args["model_git_url"]                = "git@github.com:tenstorrent/polaris_big.git"
+    polaris_big_args["model_git_url"]                = "git@github.com:tenstorrent/polaris.git"
     polaris_big_args["model_inputcfg_file_prefix"]   = "inputcfg_"
     polaris_big_args["model_log_file_suffix"]        = ".model_test.log"
     polaris_big_args["model_logs_dir"]               = f"__logs_{rtl_args['rtl_tag']}"
@@ -445,7 +445,7 @@ if "__main__" == __name__:
         print(f"  - {idx:>{int(math.log(len(tests))) + 1}}. {test}")
 
     rtl_utils.rtl_tests.execute_tests(tests, rtl_args)
-    polaris_big_utils.polaris_big_tests.execute_tests(tests, rtl_args, polaris_big_args)
+    polaris_utils.polaris_tests.execute_tests(tests, rtl_args, polaris_big_args)
     status_utils.print_status(tests, rtl_args, polaris_big_args)
 
     if need_ird_instance:
