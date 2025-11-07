@@ -380,6 +380,7 @@ class polaris_tests:
         polaris_tests.check_and_update_isa_file(rtl_args, model_args)
         model_args['cfg'] = polaris_tests.write_default_cfg_file(model_args)
         model_args['memory_map'] = polaris_tests.write_default_memory_map_file(rtl_args, model_args)
+        print("- memory map: ", model_args['memory_map'])
 
         num_processes = min([rtl_args[key_num_processes], model_args[key_num_processes], len(tests)])
         print(f"- Number of tests to execute via model:                  {len(tests)}")

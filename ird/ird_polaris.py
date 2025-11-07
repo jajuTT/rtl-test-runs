@@ -250,7 +250,8 @@ def build_rtl_test_bench(path, repo_dir, machine, port, username = None):
             cmds = []
             cmds.append(f"pwd")
             cmds.append(f"source SETUP.cctb.local.sh")
-            cmds.append(f"rsim run_test --test t6-quas-n1-ttx-elwadd-broadcast-col-fp16-llk")
+            # cmds.append(f"rsim run_test --test t6-quas-n1-ttx-elwadd-broadcast-col-fp16-llk")
+            cmds.append(f"rsim run_test --test t6-quas-n1-ttx-elwadd-fp32-dest-llk")
             cmd = ' && '.join(cmds)
             print(f"- executing command {cmd} on server {machine}, port {port}")
             conn.run(cmd, timeout = 1800)
@@ -297,6 +298,7 @@ def get_rtl_data_path_from_rtl_tag(tag):
         case "jul1"  : return "/proj_tensix/user_dev/sjaju/work/july/01"
         case "jul27" : return "/proj_tensix/user_dev/sjaju/work/july/27"
         case "sep23" : return "/proj_tensix/user_dev/sjaju/work/sep/23"
+        case "nov6"  : return "/proj_tensix/user_dev/sjaju/work/nov/6"
         case _       :
             month_str =  datetime.datetime.now().strftime('%B').lower()[0:3]
             day_str   = f"{datetime.datetime.now().day}"
@@ -318,7 +320,7 @@ def get_yml_files_containing_tests(tag):
 
 if "__main__" == __name__:
     rtl_args = dict()
-    rtl_args["rtl_tag"] = "sep23"
+    rtl_args["rtl_tag"] = "nov6"
     path = get_rtl_data_path_from_rtl_tag(rtl_args["rtl_tag"])
     if isinstance(path, tuple):
         rtl_args["rtl_tag"] = path[0]
@@ -440,7 +442,7 @@ if "__main__" == __name__:
         check_rtl_test_bench_path_clone_and_build_if_required(path, rtl_args["remote_root_dir"], machine, port, rtl_args["username"])
 
     tests = sorted(rtl_utils.test_names.get_tests(rtl_args))
-    tests = [test for test in tests if "t6-quas-n4-ttx-matmul-l1-acc-multicore-height-sharded-mxfp4_a-llk" != test]
+    # tests = [test for test in tests if "t6-quas-n4-ttx-matmul-l1-acc-multicore-height-sharded-mxfp4_a-llk" != test]
     print(f"- found {len(tests)} tests.")
     for idx, test in enumerate(sorted(tests)):
         print(f"  - {idx:>{int(math.log(len(tests))) + 1}}. {test}")
