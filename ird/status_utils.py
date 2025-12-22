@@ -112,7 +112,7 @@ def get_test_class(test):
                 test_class = key
 
     if not test_class:
-        raise Exception(f"- error: could not determine test class for {test}")
+        test_class = "UNCLASSIFIED"
 
     return test_class
 

@@ -81,6 +81,7 @@ def get_minimal_rtl_data(rtl_args: dict[str, typing.Any], polaris_args: dict[str
         test_path = os.path.join(test_dir_parent_rel_path, test + rtl_args.get(key_test_dir_suffix, "_0"))
         test_path = re.escape(test_path)
         cmd = f"rsync -avz --include='*/' "
+        # cmd += f"--include='{test_path}/**/*.elf' --include='{test_path}/TOP*.txt' --include='sim_result.yml' "
         cmd += f"--include='{test_path}/**/*.elf' --include='sim_result.yml' "
         cmd += f"--exclude='*' --prune-empty-dirs {src_dir} {dest_dir}"
 
@@ -144,6 +145,7 @@ def main():
         for test in tests:
             test += "_0"
             test = re.escape(test)
+            # cmd += f"--include='{test}/**/*.elf' --include='{test}/TOP*.txt' --include='{test}/sim_result.yml' "
             cmd += f"--include='{test}/**/*.elf' --include='{test}/sim_result.yml' "
             
         cmd += f"--exclude='*' --prune-empty-dirs auslogo2:{src_dir} {dest_dir}"
