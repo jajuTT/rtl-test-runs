@@ -161,7 +161,8 @@ def ird_release_all(username = getpass.getuser(), hostname = "yyz-ird", key_file
         print("- end of ird list output")
 
 def clone_rtl_test_bench_at(path, repo_dir, machine, port, username = None):
-    repo_url  = f"git@yyz-tensix-gitlab:tensix-hw/{repo_dir}.git"
+    # repo_url  = f"git@yyz-tensix-gitlab:tensix-hw/{repo_dir}.git"
+    repo_url  = f"git@yyz-gitlab.local.tenstorrent.com:tensix/tensix-hw/{repo_dir}.git"
     if not username:
         username = getpass.getuser()
 
@@ -299,6 +300,7 @@ def get_rtl_data_path_from_rtl_tag(tag):
         case "jul27" : return "/proj_tensix/user_dev/sjaju/work/july/27"
         case "sep23" : return "/proj_tensix/user_dev/sjaju/work/sep/23"
         case "nov6"  : return "/proj_tensix/user_dev/sjaju/work/nov/6"
+        case "nov17" : return "/proj_tensix/user_dev/sjaju/work/nov/17"
         case _       :
             month_str =  datetime.datetime.now().strftime('%B').lower()[0:3]
             day_str   = f"{datetime.datetime.now().day}"
@@ -320,7 +322,7 @@ def get_yml_files_containing_tests(tag):
 
 if "__main__" == __name__:
     rtl_args = dict()
-    rtl_args["rtl_tag"] = "nov6"
+    rtl_args["rtl_tag"] = "nov17"
     path = get_rtl_data_path_from_rtl_tag(rtl_args["rtl_tag"])
     if isinstance(path, tuple):
         rtl_args["rtl_tag"] = path[0]
@@ -335,7 +337,8 @@ if "__main__" == __name__:
     rtl_args["debug_dir_path"]           = "rsim"
     rtl_args["debug_dir"]                = "debug"
     rtl_args["force"]                    = False
-    rtl_args["git"]                      = "git@yyz-tensix-gitlab:tensix-hw/ws-tensix.git"
+    # rtl_args["git"]                      = "git@yyz-tensix-gitlab:tensix-hw/ws-tensix.git"
+    rtl_args["git"]                      = "git@yyz-gitlab.local.tenstorrent.com:tensix/tensix-hw/ws-tensix.git"
     rtl_args["infra_dir"]                = "infra"
     rtl_args["ird_server"]               = "yyz-ird"
     rtl_args["isa_file_name"]            = "assembly.yaml"
