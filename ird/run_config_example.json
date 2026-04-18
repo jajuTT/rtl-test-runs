@@ -1,0 +1,26 @@
+{
+  "rtl": {
+    "tensix_host": "tensix-l-12",
+    "rtl_tag": "apr16",
+    "remote_root_dir_path": "/proj_tensix/user_dev/sjaju/work/apr/16",
+    "remote_root_dir": "ws-tensix",
+    "git_url": "git@yyz-gitlab.local.tenstorrent.com:tensix/tensix-hw/ws-tensix.git",
+    "suites": "postcommit",
+    "yaml_files": {
+      "ttx-llk-sfpu.yml": {"suites": "postcommit"},
+      "ttx-llk-fixed.yml": {"suites": "postcommit"}
+    },
+    "mode": "batch",
+    "num_processes": 11,
+    "max_test_attempts": 2,
+    "launch_mode": "direct_ssh",
+    "remote_python": "/opt/miniconda3/bin/python",
+    "package_level": "minimal",
+    "previous_rtl_tag": "feb20"
+  },
+  "model": {
+    "git_url": "git@github.com:tenstorrent/polaris_big.git",
+    "git_branch": "main",
+    "num_processes": 11
+  }
+}
