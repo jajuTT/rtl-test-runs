@@ -1,15 +1,18 @@
 """Teach a fresh polaris_big checkout about a new RTL tag.
 
-Upstream ``polaris_big/main`` hard-codes the list of accepted RTL tags in
-three separate Python files and ships a per-tag ``ttqs_neo4_<tag>.json``
-config. When we add a new tag (e.g. ``apr16``), all four need to grow or the
-correlation tool refuses to start with::
+Upstream polaris_big now validates RTL tags by looping over the TTQSTags enum
+in isaFunctions.py, eliminating the need to patch multiple files. When adding
+a new tag (e.g. ``apr16``), only two operations are needed:
 
-    ValueError: One or more invalid RTL tag(s): ['apr16'], accepted RTL tags: [...]
+1. Add the tag to the TTQSTags enum in ttsim/back/tensix_neo/isaFunctions.py
+2. Create the config file config/tensix_neo/ttqs_neo4_<tag>.json
 
-Because ``ird analyze`` auto-clones polaris_big/ from upstream, these patches
-have to be reapplied on every fresh checkout. This helper is idempotent:
-re-running it is a no-op once all four patches are in place.
+The validation points in run_rtl_neosim_correlation.py and tensixFunc.py now
+automatically loop over TTQSTags.is_supported and require no patching.
+
+Because ``ird analyze`` auto-clones polaris_big/ from upstream, these operations
+must be reapplied on every fresh checkout. This helper is idempotent: re-running
+is a no-op once both operations are complete.
 """
 
 from __future__ import annotations
@@ -17,7 +20,7 @@ from __future__ import annotations
 import datetime
 import logging
 import re
-import shutil
+import sys
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -34,75 +37,38 @@ def patch_polaris_big_for_tag(
     rtl_tag: str,
     previous_rtl_tag: str,
 ) -> None:
-    """Apply all four rtl-tag patches to *polaris_big_dir*. Idempotent.
+    """Teach polaris_big about a new RTL tag. Idempotent.
+
+    Performs two operations:
+    1. Adds rtl_tag to TTQSTags enum in isaFunctions.py
+    2. Creates config file ttqs_neo4_<rtl_tag>.json from previous tag
+
+    The other validation points (run_rtl_neosim_correlation.py, tensixFunc.py)
+    now loop over the TTQSTags enum automatically and require no patching.
 
     Parameters
     ----------
     polaris_big_dir: root of the polaris_big checkout.
     rtl_tag: tag to add (e.g. ``"apr16"``).
-    previous_rtl_tag: an existing tag (e.g. ``"feb20"``) used as:
-      * anchor to locate the insertion point in ``TTQSTags`` enum, and
-      * source for the seeded ``ttqs_neo4_<rtl_tag>.json`` config.
+    previous_rtl_tag: existing tag (e.g. ``"feb20"``) used as:
+      * anchor to locate insertion point in TTQSTags enum
+      * source template for ttqs_neo4_<rtl_tag>.json config
     """
     root = Path(polaris_big_dir)
     touched = []
 
-    if _patch_rtl_tags_list(root, rtl_tag):
-        touched.append("tools/run_rtl_neosim_correlation.py")
-    if _patch_llk_assert(root, rtl_tag):
-        touched.append("ttsim/back/tensix_neo/tensixFunc.py")
+    # Operation 1: Patch TTQSTags enum
     if _patch_ttqs_enum(root, rtl_tag, previous_rtl_tag):
         touched.append("ttsim/back/tensix_neo/isaFunctions.py")
-    if _seed_ttqs_config(root, rtl_tag, previous_rtl_tag):
+
+    # Operation 2: Create config file via isaFunctions helper
+    if _create_config_file(root, rtl_tag):
         touched.append(f"config/tensix_neo/ttqs_neo4_{rtl_tag}.json")
 
     if touched:
         logger.info("Patched polaris_big for rtl_tag=%s: %s", rtl_tag, touched)
     else:
-        logger.info("polaris_big already knows rtl_tag=%s (no patches needed)", rtl_tag)
-
-
-def _patch_rtl_tags_list(root: Path, rtl_tag: str) -> bool:
-    """Append ``rtl_tag`` to ``self.rtl_tags: list[str] = [...]`` in
-    tools/run_rtl_neosim_correlation.py."""
-    path = root / "tools" / "run_rtl_neosim_correlation.py"
-    text = path.read_text()
-    pattern = re.compile(
-        r"(self\.rtl_tags\s*:\s*list\[str\]\s*=\s*\[)([^\]]*?)(\])",
-        re.DOTALL,
-    )
-    m = pattern.search(text)
-    if m is None:
-        raise RuntimeError(f"Could not locate `self.rtl_tags: list[str] = [...]` in {path}")
-    body = m.group(2)
-    if f'"{rtl_tag}"' in body or f"'{rtl_tag}'" in body:
-        return False
-    stripped = body.rstrip()
-    sep = ", " if stripped and not stripped.endswith(",") else ("" if not stripped else " ")
-    new_list = f'{m.group(1)}{stripped}{sep}"{rtl_tag}"{m.group(3)}'
-    path.write_text(text[:m.start()] + new_list + text[m.end():])
-    return True
-
-
-def _patch_llk_assert(root: Path, rtl_tag: str) -> bool:
-    """Append ``rtl_tag`` to the ``assert args['llkVersionTag'] in [...]`` list
-    in ttsim/back/tensix_neo/tensixFunc.py."""
-    path = root / "ttsim" / "back" / "tensix_neo" / "tensixFunc.py"
-    text = path.read_text()
-    pattern = re.compile(
-        r"(assert\s+args\[['\"]llkVersionTag['\"]\]\s+in\s+\[)([^\]]*?)(\])"
-    )
-    m = pattern.search(text)
-    if m is None:
-        raise RuntimeError(f"Could not locate `llkVersionTag` assert list in {path}")
-    body = m.group(2)
-    if f'"{rtl_tag}"' in body or f"'{rtl_tag}'" in body:
-        return False
-    stripped = body.rstrip()
-    sep = ", " if stripped and not stripped.endswith(",") else ("" if not stripped else " ")
-    new_list = f'{m.group(1)}{stripped}{sep}"{rtl_tag}"{m.group(3)}'
-    path.write_text(text[:m.start()] + new_list + text[m.end():])
-    return True
+        logger.info("polaris_big already knows rtl_tag=%s (no operations needed)", rtl_tag)
 
 
 def _patch_ttqs_enum(root: Path, rtl_tag: str, previous_rtl_tag: str) -> bool:
@@ -130,21 +96,39 @@ def _patch_ttqs_enum(root: Path, rtl_tag: str, previous_rtl_tag: str) -> bool:
     return True
 
 
-def _seed_ttqs_config(root: Path, rtl_tag: str, previous_rtl_tag: str) -> bool:
-    """Copy ``ttqs_neo4_<previous>.json`` -> ``ttqs_neo4_<rtl_tag>.json`` if the
-    destination doesn't already exist."""
+def _create_config_file(root: Path, rtl_tag: str) -> bool:
+    """Create config file via isaFunctions.create_default_cfg_file_from_previous_tag().
+    Returns True if file was created, False if it already exists."""
     cfg_dir = root / "config" / "tensix_neo"
-    src = cfg_dir / f"ttqs_neo4_{previous_rtl_tag}.json"
     dst = cfg_dir / f"ttqs_neo4_{rtl_tag}.json"
+    
+    # Check if config already exists
     if dst.exists():
         return False
-    if not src.exists():
-        raise RuntimeError(
-            f"Previous ttqs config {src} not found. "
-            f"Set rtl.previous_rtl_tag to an existing tag in {cfg_dir}."
-        )
-    shutil.copy2(src, dst)
-    return True
+    
+    # Import isaFunctions from polaris_big
+    # Add polaris_big to path temporarily to import the module
+    sys.path.insert(0, str(root))
+    try:
+        import ttsim.back.tensix_neo.isaFunctions as isaFunctions
+        
+        # Call the helper function to create config file
+        # This handles validation, error checking, and proper JSON formatting
+        try:
+            isaFunctions.create_default_cfg_file_from_previous_tag(
+                rtl_tag,
+                config_dir=cfg_dir
+            )
+            # Verify file was created
+            return dst.exists()
+        except (FileNotFoundError, ValueError) as e:
+            # Re-raise with context
+            raise RuntimeError(
+                f"Failed to create config for {rtl_tag}: {e}"
+            ) from e
+    finally:
+        # Clean up sys.path
+        sys.path.pop(0)
 
 
 def _pretty_comment(rtl_tag: str) -> str:

@@ -250,23 +250,27 @@ same idempotent polaris_big patches — see
 
 #### polaris_big patches (auto-applied by `stage` / `analyze`)
 
-Upstream `polaris_big/main` hard-codes the list of accepted RTL tags in four
-places, and ships a per-tag JSON config. A fresh tag (e.g. `apr16`) needs all
-four additions before `run_rtl_neosim_correlation.py` will accept it. The
-patcher (`ird/local/polaris_big_patch.py`) applies them idempotently every
-time `stage` / `analyze` runs:
+Upstream polaris_big now validates RTL tags by looping over the `TTQSTags` enum
+in `ttsim/back/tensix_neo/isaFunctions.py`. When adding a fresh tag (e.g. `apr16`),
+only two operations are needed:
 
-1. `tools/run_rtl_neosim_correlation.py` — append `rtl_tag` to
-   `self.rtl_tags: list[str] = [...]`.
-2. `ttsim/back/tensix_neo/tensixFunc.py` — append `rtl_tag` to the
-   `assert args['llkVersionTag'] in [...]` list.
-3. `ttsim/back/tensix_neo/isaFunctions.py` — insert `rtl_tag = "<rtl_tag>" #
-   <pretty date>` into `class TTQSTags`, right after `rtl.previous_rtl_tag`.
-4. `config/tensix_neo/ttqs_neo4_<rtl_tag>.json` — seeded by copying
-   `ttqs_neo4_<previous_rtl_tag>.json`.
+1. **Add tag to TTQSTags enum** — insert new tag entry in `TTQSTags` class in
+   `ttsim/back/tensix_neo/isaFunctions.py`, positioned after `rtl.previous_rtl_tag`.
 
-`rtl.previous_rtl_tag` (default `"feb20"`) is the anchor for step 3 and the
-source for step 4. Bump it when a new upstream tag lands.
+2. **Create config file** — automatically created via
+   `create_default_cfg_file_from_previous_tag()` by copying
+   `ttqs_neo4_<previous_rtl_tag>.json` → `ttqs_neo4_<rtl_tag>.json`.
+
+The patcher (`ird/local/polaris_big_patch.py`) performs both operations
+idempotently every time `stage` / `analyze` runs. Other validation points
+(`run_rtl_neosim_correlation.py`, `tensixFunc.py`) now automatically accept
+any tag in the enum with `.is_supported = True`, requiring no patching.
+
+**Config anchor:** `rtl.previous_rtl_tag` (default `"feb20"`) specifies:
+- The insertion point for step 1 (new tag added after this one)
+- The source template for step 2 (config copied from this tag)
+
+Bump `previous_rtl_tag` when a new upstream tag lands.
 
 ### `release`
 
@@ -409,12 +413,11 @@ Notes:
   checkout. If you need a different branch or the latest `main`, fix it
   manually (`git -C polaris_big fetch && git -C polaris_big checkout <branch>`)
   or remove the directory and rerun `stage` / `analyze` to re-clone.
-- **`ValueError: One or more invalid RTL tag(s)`** from
-  `run_rtl_neosim_correlation.py` — the patcher couldn't find the expected
-  anchor. Verify `rtl.previous_rtl_tag` matches an existing tag in upstream
-  polaris_big's `TTQSTags` enum and that `config/tensix_neo/ttqs_neo4_<prev>.json`
-  exists. If upstream renamed the enum or the assert, update
-  `ird/local/polaris_big_patch.py` regexes.
+- **`ValueError: One or more invalid RTL tag(s)`** from validation — the tag
+  is missing from the `TTQSTags` enum in `isaFunctions.py`. Verify
+  `rtl.previous_rtl_tag` matches an existing tag in upstream polaris_big's
+  `TTQSTags` enum and that `config/tensix_neo/ttqs_neo4_<prev>.json` exists.
+  The patcher will automatically add the new tag entry and create the config.
 - **`session.json` deleted / new shell with no state** — don't run `deploy`
   (that would re-run tests). Rerun any of `repackage` / `pull` / `status` /
   `release` with `--config <run_config.json>`; the command will adopt your
